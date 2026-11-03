@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.py\"", "timeout": 30}] }],
+    "UserPromptSubmit": [{ "hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.py\"", "timeout": 30}] }],
+    "PreToolUse": [{ "matcher": "AskUserQuestion", "hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.py\"", "timeout": 30}] }],
+    "PostToolUse": [{ "matcher": "AskUserQuestion", "hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.py\"", "timeout": 30}] }],
+    "Stop": [{ "hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.py\"", "timeout": 30}] }]
+  }
+}

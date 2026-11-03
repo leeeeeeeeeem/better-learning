@@ -1,0 +1,13 @@
+{
+  "name": "better-learning",
+  "owner": {
+    "name": "Stefano Lemerle"
+  },
+  "plugins": [
+    {
+      "name": "better-learning",
+      "source": "./",
+      "description": "Teaching-first learning system for Claude Code + Obsidian."
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "better-learning",
+  "version": "0.1.0",
+  "description": "Teaching-first learning system for Claude Code + Obsidian: probe → plan → teach with graded questions, practice sessions, a persistent knowledge graph, verified figures and demos, and a live session mirror into your vault. Ported from amosblomqvist/learn (pi) and LearnHarness.",
+  "author": {
+    "name": "Stefano Lemerle"
+  },
+  "license": "AGPL-3.0-only"
+}
