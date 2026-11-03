@@ -1,4 +1,4 @@
-# better-learning — a learning system for Claude Code + Obsidian
+# Better Learning: a learning system for Claude Code + Obsidian
 
 > **Scope.** This project exists to give **Claude subscription users (Pro / Max) who don't have an API key** access to a learning system similar to [LearnHarness](https://learnharness.ai). It runs entirely inside Claude Code, so it uses your subscription instead of pay-per-token API billing.
 >
