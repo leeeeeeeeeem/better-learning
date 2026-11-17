@@ -37,6 +37,16 @@ Then end your turn with one short line (the question is already in the note). Th
 
 For everything with no right answer. They can always pick "Other" and type. If you recommend an option, list it first with "(Recommended)". It's mirrored into the note automatically.
 
+### Order: prose first, in an earlier step
+
+Claude Code writes each step (your text plus the tool call that ends it) to the transcript only after that tool finishes, and the note is built from the transcript. So text that sits in the same step as a question can only reach the note *after* the question. Keep prose that the learner must read before a question in an earlier step:
+
+- **Quiz:** write the explanation (or the prediction's setup), then run `tutor quiz`, then call AskUserQuestion. The `tutor quiz` call ends the step, so the explanation is in the note before the question appears. Don't write prose between `tutor quiz` and AskUserQuestion.
+- **Plain AskUserQuestion:** if prose must come before it, write the prose, run `tutor flush`, then ask.
+- **CLI blocks** (recall question, plan map, problem, probe assessment) are placed automatically after the prose that preceded the command. The command prints a `⟦b3⟧` marker for this; ignore it.
+
+A multiple-choice check is refused by the hook when no explanation was written since the last answer. The refusal tells you what to do: write the explanation, `tutor flush`, ask again with the same input.
+
 ### One question per turn
 
 Ask, then end your turn — their answer determines the next. A second question while one is open is refused.

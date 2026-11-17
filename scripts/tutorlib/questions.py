@@ -74,6 +74,18 @@ def _phase_fields(rec: dict, spec: dict, tool: str) -> dict:
     return {"phase": rec["phase"], "type": qtype, "nodeId": node}
 
 
+def _require_prediction(rec: dict, fields: dict, tool: str) -> None:
+    """Every plan node opens with a prediction: no check on a node before one."""
+    if fields["type"] != "check":
+        return
+    node = fields["nodeId"]
+    if not any(q.get("nodeId") == node and q.get("type") == "predict" for q in rec["questions"]):
+        raise TutorError(
+            f"{tool}: node `{node}` has no prediction yet. Every node starts with a prediction. "
+            f"Ask a predict question on `{node}` first. After the answer, write the explanation, then ask the check."
+        )
+
+
 def commit_quiz(rec: dict, spec: dict) -> tuple[dict, dict]:
     if (q := open_question(rec)) is not None:
         raise TutorError(f"Question {q['qid']} is open. Ask one question per turn. Wait for the answer of the learner.")
@@ -94,6 +106,7 @@ def commit_quiz(rec: dict, spec: dict) -> tuple[dict, dict]:
         raise TutorError(f"quiz: each correct answer must be the exact text of one option. These do not match: {missing}.")
     multi = bool(spec.get("multiSelect")) or len(correct) > 1
     fields = _phase_fields(rec, spec, "quiz")
+    _require_prediction(rec, fields, "quiz")
 
     order = options[:]
     if spec.get("shuffle", True):
@@ -268,6 +281,7 @@ def commit_recall(rec: dict, spec: dict) -> dict:
         if not spec.get(field):
             raise TutorError(f"recall: `{field}` is missing. `answer` is your full committed answer, with the reasoning.")
     fields = _phase_fields(rec, spec, "recall")
+    _require_prediction(rec, fields, "recall")
     q = {
         "qid": _next_qid(rec),
         "tool": "recall",
@@ -317,6 +331,7 @@ def grade_recall(rec: dict, qid: str, verdict: str, feedback: str | None) -> dic
         raise TutorError("--verdict must be one of: correct, partial, incorrect, dontknow.")
     q["result"] = {**(q.get("result") or {}), "verdict": verdict, "feedback": feedback, "graded": now_iso()}
     q["status"] = "graded"
+    rec["prose_since_answer"] = 0
     return q
 
 

@@ -20,29 +20,45 @@ Verbosity is overhead, and overhead is not teaching. The method is a discipline 
 
 A Socratic step is about *who* speaks first, not about grading: a question with a definite right answer is still gradable — use `quiz`/`recall`, not AskUserQuestion — even when it's an open-ended prompt. Reserve plain AskUserQuestion for genuine no-right-answer forks.
 
-## The two questions — predict, then check
+## The teaching loop — predict, explain, check
 
-Every teaching unit is a **predict → teach → check** cycle, and the two questions have entirely different jobs.
+**Every node of the plan runs this loop. No exceptions:**
 
-### The prediction (`"type": "predict"`) — motivation
+1. **Predict** (`"type": "predict"`). The node opens with a prediction question about the node's concept.
+2. **Explain.** After their answer, you ALWAYS write an explanation of the node. Only its length depends on the prediction.
+3. **Check** (`"type": "check"`). After the explanation, in the same turn, a check that the node landed.
 
-- Posed BEFORE you teach the step, as its own turn. They answer first; your teaching then resolves it.
-- Its subject is the NEXT step — not yet taught. It need NOT be answerable from what's been covered. Ideally the reasoning chain makes the next step guessable — a well-motivated prediction lands better — but derivability is not required.
-- Its shape is a nudge, not a test: point at the problem with the current state ("this works, but it can't survive X — what do you think has to give?"), and let them try to discover the next step. Reveal nothing more.
-- When the answer returns, OPEN the teaching by resolving it explicitly: what they predicted, what is actually true, and why. The note already showed them the verdict and explanation — your prose is the real explanation; make the correction land on their attempt.
-- Skip it when there's no meaningful next step to anticipate (a wrap-up, a pure repair turn). Never force one; never let skipping become the habit.
+The CLI enforces the order: a check on a node is refused if that node had no prediction, or if you wrote no explanation since the last question. A node that needs several reasoning steps may run several explain → check rounds, and may add predictions for later steps; the first question on every node is always its prediction.
 
-### The check (`"type": "check"`) — data for you
+### 1. The prediction — motivation
 
-Posed AFTER the step's teaching is complete. Its verdict is your continuation data: continue, repair, or reclarify. In the note, checks arrive **collapsed** ("Check your understanding") — they follow the reading; predictions arrive open — they gate it.
+- Its subject is the node's concept — not yet taught. It need NOT be answerable from what's been covered. Ideally the reasoning chain makes the answer guessable — a well-motivated prediction lands better — but derivability is not required.
+- Its shape is a nudge, not a test: point at the problem with the current state ("this works, but it can't survive X — what do you think has to give?"), and let them try to discover the next step. Reveal nothing more. If the concept's name would give the answer away, hold the name back until the explanation ([clarity.md](clarity.md)).
+- Write the prose the prediction needs (the setup, the problem) before it, in the same turn.
 
-### The cycle
+### 2. The explanation — always, sized by the prediction
 
-**predict → their prediction → teaching (resolving it) → check → their answer → your reaction → the next predict.** One question per turn, every turn.
+Open by resolving the prediction explicitly: what they predicted, what is actually true, and why. Name the concept in the first sentences ([clarity.md](clarity.md)). The note already showed them the verdict and the short explanation attached to the question — your explanation is the real one; make it land on their attempt. Then teach the node.
 
-- **Teach first, check second — in that order.** The explanation, the diagram, the worked example: all of it above the check in the same turn. A check with no prose before it is a failed check.
-- **Finish the thought before you fire.** Never call a check mid-explanation.
-- **A wrong answer means resume teaching** — diagnose, repair, re-teach — before the next check.
+Size it from the prediction's verdict, confidence, and thinking:
+
+| Their prediction | The explanation |
+|---|---|
+| Correct and confident | A **revision**: compact, but a complete statement of the node — every fact the check will rely on, stated. Not a three-sentence summary. |
+| Correct but unsure (low confidence, thin or shaky thinking) | **Medium**: the full statement, plus the part their thinking shows is shaky. |
+| Wrong, or "I don't know" | **Detailed**: start from their attempt — where their model goes wrong and why — then build the node step by step, with a worked example. |
+
+End with the node's conclusion stated, usually as the `> [!IMPORTANT]` callout.
+
+### 3. The check — data for you
+
+Posed AFTER the explanation, in the same turn, right below it. **Don't end the turn and wait for "ready".** The learner reads in Obsidian, where your explanation sits above the question; the terminal dialog waits while they read. In the note, checks arrive **collapsed** ("Check your understanding") so they don't distract from the reading; predictions arrive open.
+
+Its verdict is your continuation data: continue, repair, or reclarify. **A wrong answer means resume teaching** — diagnose, repair, re-teach (that's a new explanation, sized to the miss) — then check again. A correct answer moves on to the next node's prediction.
+
+### The rhythm
+
+**predict → their answer → explanation + check → their answer → (repair + check)* → the next node's predict.** One question per turn. Never call a question mid-explanation: finish the thought, then fire.
 
 ## What a check must be
 

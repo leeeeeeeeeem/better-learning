@@ -12,12 +12,37 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 from . import blocks, questions
 from .vault import append_note, load_state, note_abspath
 
 ASK_TOOL = "AskUserQuestion"
+
+# Claude Code writes a response (its text and its tool call) to the transcript
+# only AFTER that tool finishes. So a CLI command can't see the prose written
+# just before it, and a block it appended directly would land above that prose.
+# Instead the CLI queues its block and prints a marker; the block is placed when
+# a flush reaches the tool result carrying the marker — right after the prose.
+MARKER_RE = re.compile(r"⟦(b\d+)⟧")
+
+
+def queue_block(rec: dict, block: str) -> str:
+    rec["block_seq"] = rec.get("block_seq", 0) + 1
+    token = f"b{rec['block_seq']}"
+    rec.setdefault("pending_blocks", []).append({"token": token, "block": block})
+    return token
+
+
+def place_pending(vault: Path, rec: dict) -> int:
+    """Fallback: append queued blocks whose marker never showed up (e.g. the
+    turn ended). Called at end of turn and before a new user message."""
+    pending = rec.get("pending_blocks") or []
+    for item in pending:
+        append_note(note_abspath(vault, rec), item["block"])
+    rec["pending_blocks"] = []
+    return len(pending)
 
 
 def transcript_path(vault: Path, sid: str) -> Path | None:
@@ -95,8 +120,24 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
 
     def emit_text():
         if pending_text:
-            out.append(blocks.assistant_block("\n\n".join(pending_text), _next_anchor(rec)))
+            text = "\n\n".join(pending_text)
+            out.append(blocks.assistant_block(text, _next_anchor(rec)))
+            # Explanation written since the last answered question (gates checks).
+            rec["prose_since_answer"] = rec.get("prose_since_answer", 0) + len(text)
             pending_text.clear()
+
+    def emit_queued(content) -> None:
+        tokens = set(MARKER_RE.findall(json.dumps(content, ensure_ascii=False)))
+        if not tokens:
+            return
+        keep = []
+        for item in rec.get("pending_blocks") or []:
+            if item["token"] in tokens:
+                emit_text()
+                out.append(item["block"])
+            else:
+                keep.append(item)
+        rec["pending_blocks"] = keep
 
     for raw in chunk.decode("utf-8", errors="replace").splitlines():
         try:
@@ -127,6 +168,7 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
             if isinstance(content, list):
                 for c in content:
                     if c.get("type") == "tool_result":
+                        emit_queued(c.get("content"))
                         tid = c.get("tool_use_id", "")
                         if tid in rec["logged_tool_ids"] and f"{tid}:answer" not in rec["logged_tool_ids"]:
                             emit_text()

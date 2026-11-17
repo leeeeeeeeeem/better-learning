@@ -91,16 +91,24 @@ class Session:
         self._lock.__enter__()
         self.rec = require_bound(self.vault)
         self.sid = current_sid()
+        self.tokens: list[str] = []
         mirror.flush(self.vault, self.rec, self.sid)
         return self
 
     def append(self, block: str):
-        append_note(note_abspath(self.vault, self.rec), block)
+        """Queue the block behind the prose written before this command (see
+        mirror.MARKER_RE). Outside Claude Code there is no transcript: append now."""
+        if self.sid and mirror.transcript_path(self.vault, self.sid):
+            self.tokens.append(mirror.queue_block(self.rec, block))
+        else:
+            append_note(note_abspath(self.vault, self.rec), block)
 
     def __exit__(self, *exc):
         try:
             if exc[0] is None:
                 save_record(self.vault, self.rec)
+                if self.tokens:
+                    print("(note markers, ignore: " + " ".join(f"⟦{t}⟧" for t in self.tokens) + ")")
         finally:
             self._lock.__exit__(*exc)
 
@@ -296,6 +304,7 @@ def cmd_session_end(args):
             return
         rec = load_record(vault, rid)
         mirror.flush(vault, rec, sid)
+        mirror.place_pending(vault, rec)
         append_note(note_abspath(vault, rec), blocks.note_block(f"Session paused/ended {now_iso()[:16].replace('T', ' ')}"))
         save_record(vault, rec)
         _hand_off(vault, sid, rec)

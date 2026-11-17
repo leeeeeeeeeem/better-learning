@@ -28,7 +28,9 @@ import secrets
 from pathlib import Path
 
 STATE_DIR = ".tutor"
-DEFAULT_CONFIG = {"folder": "Learning"}
+# min_explanation_chars: how much prose must follow an answered question before
+# a multiple-choice check may be shown (the explanation is never optional).
+DEFAULT_CONFIG = {"folder": "Learning", "min_explanation_chars": 400}
 SUBFOLDERS = ("Sessions", "Practice", "Plans", "Graph", "Research", "viz", "demos")
 
 
