@@ -284,6 +284,18 @@ def cmd_session_resume(args):
         for n in rec["plan"]["nodes"]:
             print(f"  {n['id']} [{st[n['id']]}] {n['title']}")
         print("edges: " + ", ".join(f"{a}->{b}" for a, b in rec["plan"]["edges"]))
+    q = questions.open_question(rec)
+    if q is not None and q["tool"] == "quiz":
+        # The dialog from the earlier conversation is gone. Re-asking with the
+        # same payload keeps the committed key; the hook grades it as usual.
+        print(f"\nOpen question: {q['qid']} ({q.get('type') or q['phase']}"
+              + (f", node {q['nodeId']}" if q.get("nodeId") else "") + ") was asked in an earlier conversation "
+              "and has no answer. It blocks new questions.\n"
+              "Next: after your resume message, call AskUserQuestion with this input. Do not change it:")
+        print(json.dumps(questions.ask_payload(q), indent=2, ensure_ascii=False))
+    elif q is not None:
+        print(f"\nOpen question: {q['qid']} (recall) has no answer yet. Repeat it as your message, copied exactly; "
+              "the next message from the learner is the answer:\n" + q["question"])
     recent = rec["questions"][-6:]
     if recent:
         print("\nRecent questions:")
