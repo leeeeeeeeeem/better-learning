@@ -1,8 +1,8 @@
 # Better Learning: a learning system for Claude Code + Obsidian
 
-> **Scope.** This project exists to give **Claude subscription users (Pro / Max) who don't have an API key** access to a learning system similar to [LearnHarness](https://learnharness.ai). It runs entirely inside Claude Code, so it uses your subscription instead of pay-per-token API billing.
+> **Use [LearnHarness](https://github.com/amosblomqvist/learnharness) instead.** This project started because LearnHarness needed an API key, so Claude subscription users (Pro / Max) without one had no way to use it. LearnHarness now supports the Claude Code CLI, which removes that reason. It's the original, purpose-built app: a dedicated UI, a graph canvas, dictation, and the full experience this plugin only approximates.
 >
-> **If you have an API key, use [LearnHarness](https://github.com/amosblomqvist/learnharness) instead.** It's the original, purpose-built app: a dedicated UI, a graph canvas, dictation, and the full experience this plugin only approximates. This project is a workaround for people who can't use it, not a replacement.
+> **Why this repo still exists.** I keep using and developing it because it is adapted to my own learning style (see [Changes from the originals](#changes-from-the-originals)). It's a personal project, shared as-is: it follows my preferences, and changes whenever they do.
 
 This started as a Claude Code port of two systems:
 
