@@ -70,11 +70,11 @@ Always: [clarity.md](references/clarity.md) (name every concept before explainin
 
 | Instrument | When | How |
 |---|---|---|
-| **quiz** (multiple choice) | Anything with a correct answer | `tutor quiz` commits the answer key, shuffles, and prints an AskUserQuestion payload → call AskUserQuestion with it **verbatim** → a hook grades it and hands you the verdict, confidence, and their thinking. |
-| **recall** (free recall) | When they should produce the answer in their own words | `tutor recall` commits your full answer and posts the question → end your turn → their next message is the answer (a hook hands you your commitment) → `tutor grade <qid> --verdict ...` → then react. |
+| **quiz** (closed, multiple choice) | Anything with a correct answer: they recognize it | `tutor quiz` commits the answer key, shuffles, and prints an AskUserQuestion payload → call AskUserQuestion with it **verbatim** → a hook grades it and hands you the verdict, confidence, and their thinking. |
+| **recall** (open, short) | Anything with a correct answer: they produce it in their own words | `tutor recall` commits your full answer and posts the question → end your turn → their next message is the answer (a hook hands you your commitment) → `tutor grade <qid> --verdict ...` → then react. |
 | **AskUserQuestion** (plain) | Genuine no-right-answer forks: their goal, preferences, direction | Call it directly. It is mirrored into the note automatically. |
 
-The learner's default mechanic is multiple choice; if they ask for free recall, use `recall` for graded questions instead. **One question per turn**: ask, then end your turn. Their answer determines the next.
+Use both graded instruments. Choose closed or open per question, and one or two checks per node, from the learner's answers, confidence, and thinking and from how important the node is ([teaching.md](references/teaching.md#choosing-the-checks)). If the learner asks for only one instrument, use only that one. **One question per turn**: ask, then end your turn. Their answer determines the next.
 
 ## Invariants
 

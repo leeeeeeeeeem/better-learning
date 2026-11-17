@@ -414,10 +414,14 @@ def _refresh_plan(vault: Path, rec: dict):
 # ─── questions ───────────────────────────────────────────────────────────────
 
 
+def _min_chars(vault: Path) -> int:
+    return int(load_config(vault).get("min_explanation_chars", 400))
+
+
 def cmd_quiz(args):
     spec = read_spec(args)
     with Session() as s:
-        q, payload = questions.commit_quiz(s.rec, spec)
+        q, payload = questions.commit_quiz(s.rec, spec, _min_chars(s.vault))
         _refresh_plan(s.vault, s.rec)
     print(f"Committed {q['qid']}. The answer key is stored and the options are shuffled.\n"
           "Next:\n1. Call AskUserQuestion with the input below. Do not change it.\n"
@@ -428,7 +432,7 @@ def cmd_quiz(args):
 def cmd_recall(args):
     spec = read_spec(args)
     with Session() as s:
-        q = questions.commit_recall(s.rec, spec)
+        q = questions.commit_recall(s.rec, spec, _min_chars(s.vault))
         s.append(blocks.quiz_question_block(q))
         _refresh_plan(s.vault, s.rec)
     print(f"Committed {q['qid']}. The note shows the question.\n"

@@ -86,7 +86,33 @@ def _require_prediction(rec: dict, fields: dict, tool: str) -> None:
         )
 
 
-def commit_quiz(rec: dict, spec: dict) -> tuple[dict, dict]:
+def _passed(q: dict) -> bool:
+    r = q.get("result") or {}
+    return r.get("status") == "correct" or r.get("verdict") in ("correct", "partial")
+
+
+def _require_explanation(rec: dict, fields: dict, tool: str, min_chars: int) -> None:
+    """A check needs an explanation since the last answer. Exception: a follow-up
+    check right after a passed check on the same node (two checks on one node).
+    After a failed check, the repair is an explanation, so the gate applies."""
+    if fields["type"] != "check":
+        return
+    graded = [q for q in rec["questions"] if q["status"] == "graded"]
+    last = graded[-1] if graded else None
+    if last and last.get("type") == "check" and last.get("nodeId") == fields["nodeId"] and _passed(last):
+        return
+    if rec.get("prose_since_answer", 0) >= min_chars:
+        return
+    raise TutorError(
+        f"{tool}: no explanation of `{fields['nodeId']}` since the last answer. The explanation is always required. "
+        "Its length depends on the answer.\n"
+        "Next:\n1. Write the explanation (or the repair, after a wrong check).\n"
+        "2. Run `tutor.py flush`. Text in the same step as this command is not visible to it yet.\n"
+        "3. Run this command again."
+    )
+
+
+def commit_quiz(rec: dict, spec: dict, min_chars: int = 400) -> tuple[dict, dict]:
     if (q := open_question(rec)) is not None:
         raise TutorError(f"Question {q['qid']} is open. Ask one question per turn. Wait for the answer of the learner.")
     for field in ("question", "options", "correct", "explanation"):
@@ -107,6 +133,7 @@ def commit_quiz(rec: dict, spec: dict) -> tuple[dict, dict]:
     multi = bool(spec.get("multiSelect")) or len(correct) > 1
     fields = _phase_fields(rec, spec, "quiz")
     _require_prediction(rec, fields, "quiz")
+    _require_explanation(rec, fields, "quiz", min_chars)
 
     order = options[:]
     if spec.get("shuffle", True):
@@ -274,7 +301,7 @@ def grade_quiz(q: dict, tool_input: dict, tool_response) -> str:
 # ─── free recall ─────────────────────────────────────────────────────────────
 
 
-def commit_recall(rec: dict, spec: dict) -> dict:
+def commit_recall(rec: dict, spec: dict, min_chars: int = 400) -> dict:
     if (q := open_question(rec)) is not None:
         raise TutorError(f"Question {q['qid']} is open. Ask one question per turn. Wait for the answer of the learner.")
     for field in ("question", "answer"):
@@ -282,6 +309,7 @@ def commit_recall(rec: dict, spec: dict) -> dict:
             raise TutorError(f"recall: `{field}` is missing. `answer` is your full committed answer, with the reasoning.")
     fields = _phase_fields(rec, spec, "recall")
     _require_prediction(rec, fields, "recall")
+    _require_explanation(rec, fields, "recall", min_chars)
     q = {
         "qid": _next_qid(rec),
         "tool": "recall",

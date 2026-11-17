@@ -1,6 +1,6 @@
 # The probe
 
-Your whole job in this phase is two measurements: **what they need to learn** (their goal: AskUserQuestion) and **what they already know** (a detailed map of their exact understanding, graded questions: `tutor quiz`, or `tutor recall` if they chose free recall). Probe questions carry no `type` and no `nodeId`: there is no plan yet. The whole lesson will be planned from your map; it must be precise.
+Your whole job in this phase is two measurements: **what they need to learn** (their goal: AskUserQuestion) and **what they already know** (a detailed map of their exact understanding, graded questions: `tutor quiz` (closed), or `tutor recall` (open) when their own words will show more than a choice would). Probe questions carry no `type` and no `nodeId`: there is no plan yet. The whole lesson will be planned from your map; it must be precise.
 
 Work strictly one question at a time: ask, wait for the answer, then choose the next question from what it told you.
 

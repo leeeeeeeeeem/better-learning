@@ -41,11 +41,12 @@ For everything with no right answer. They can always pick "Other" and type. If y
 
 Claude Code writes each step (your text plus the tool call that ends it) to the transcript only after that tool finishes, and the note is built from the transcript. So text that sits in the same step as a question can only reach the note *after* the question. Keep prose that the learner must read before a question in an earlier step:
 
-- **Quiz:** write the explanation (or the prediction's setup), then run `tutor quiz`, then call AskUserQuestion. The `tutor quiz` call ends the step, so the explanation is in the note before the question appears. Don't write prose between `tutor quiz` and AskUserQuestion.
+- **Checks (closed or open):** write the explanation, run `tutor flush`, then run `tutor quiz` or `tutor recall`. The flush call ends the step, so the CLI can see the explanation (it refuses a check without one) and the note shows it before the question. For a closed check, then call AskUserQuestion. Don't write prose between `tutor quiz` and AskUserQuestion.
+- **Predictions:** write the setup, then run `tutor quiz` or `tutor recall` (no flush needed; there's no gate on predictions).
 - **Plain AskUserQuestion:** if prose must come before it, write the prose, run `tutor flush`, then ask.
 - **CLI blocks** (recall question, plan map, problem, probe assessment) are placed automatically after the prose that preceded the command. The command prints a `⟦b3⟧` marker for this; ignore it.
 
-A multiple-choice check is refused by the hook when no explanation was written since the last answer. The refusal tells you what to do: write the explanation, `tutor flush`, ask again with the same input.
+A check is refused when no explanation was written since the last answer, except for a follow-up right after a passed check on the same node. The refusal tells you what to do: write the explanation (or the repair), `tutor flush`, run the command again.
 
 ### One question per turn
 

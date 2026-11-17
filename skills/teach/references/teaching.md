@@ -28,7 +28,9 @@ A Socratic step is about *who* speaks first, not about grading: a question with 
 2. **Explain.** After their answer, you ALWAYS write an explanation of the node. Only its length depends on the prediction.
 3. **Check** (`"type": "check"`). After the explanation, in the same turn, a check that the node landed.
 
-The CLI enforces the order: a check on a node is refused if that node had no prediction, or if you wrote no explanation since the last question. A node that needs several reasoning steps may run several explain → check rounds, and may add predictions for later steps; the first question on every node is always its prediction.
+The CLI enforces the order: a check on a node is refused if that node had no prediction, or if you wrote no explanation since the last answer. The one exception is a follow-up check right after a passed check on the same node. A node that needs several reasoning steps may run several explain → check rounds, and may add predictions for later steps; the first question on every node is always its prediction.
+
+Each question, prediction or check, can be **closed** (`tutor quiz`, multiple choice) or **open** (`tutor recall`, a short question they answer in their own words). You choose per question; see "Choosing the checks" below.
 
 ### 1. The prediction: motivation
 
@@ -50,15 +52,48 @@ Size it from the prediction's verdict, confidence, and thinking:
 
 End with the node's conclusion stated, usually as the `> [!IMPORTANT]` callout.
 
-### 3. The check: data for you
+### 3. The checks: data for you
 
-Posed AFTER the explanation, in the same turn, right below it. **Don't end the turn and wait for "ready".** The learner reads in Obsidian, where your explanation sits above the question; the terminal dialog waits while they read. In the note, checks arrive **collapsed** ("Check your understanding") so they don't distract from the reading; predictions arrive open.
+After the explanation, check that the node landed. Write the explanation, run `tutor flush`, then run the check command (see [questions.md](questions.md#order-prose-first-in-an-earlier-step) for why). A closed check comes in the same turn: **don't end the turn and wait for "ready".** The learner reads in Obsidian, where your explanation sits above the question; the terminal dialog waits while they read. An open check ends your turn, because they answer by typing. In the note, checks arrive **collapsed** ("Check your understanding") so they don't distract from the reading; predictions arrive open.
 
-Its verdict is your continuation data: continue, repair, or reclarify. **A wrong answer means resume teaching**: diagnose, repair, re-teach (that's a new explanation, sized to the miss), then check again. A correct answer moves on to the next node's prediction.
+Its verdict is your continuation data: continue, repair, or reclarify. **A wrong answer means resume teaching**: diagnose, repair, re-teach (that's a new explanation, sized to the miss), then check again. A passed check either moves on to the next node's prediction, or, when the evidence calls for it, gets one follow-up check.
+
+### Choosing the checks
+
+The two instruments measure different things:
+
+| | Closed (`tutor quiz`) | Open (`tutor recall`) |
+|---|---|---|
+| Shows | They can **recognize** the right idea among believable wrong ones | They can **produce** the idea from nothing, in their own words |
+| Strong for | Telling apart confusable ideas; a misconception you can name as a distractor; a quick confirmation; reading their confidence | Load-bearing ideas; definitions they must be able to state; mechanisms ("why does X happen?"); spotting a confused model in their own words |
+| Cost | Seconds | A minute of typing; you grade it |
+
+Keep open questions short: one specific question, answerable in one to three sentences. "Explain attention" is too broad; "Why does attention divide the scores by $\sqrt{d_k}$?" is right.
+
+**How many checks.** One check is the default. Use two when the evidence says one isn't enough:
+
+- **The node is important**: later nodes depend on it (look at the plan map), or the goal rests on it.
+- **The first check passed, but weakly**: low confidence, thin or shaky thinking, a lucky-looking pick, or a `partial` open answer.
+- **The first check showed recognition only**: a closed check passed, but the node is one they must be able to produce. Follow with an open one.
+- **The prediction went badly** (wrong, or "I don't know") on an important node: after the detailed explanation, one check rarely proves the repair held.
+
+**Which combination.** Any is possible; choose from their answers, confidence, and thinking, and from the node's importance:
+
+| Combination | When |
+|---|---|
+| One closed | A small or supporting node, and the prediction was correct and confident |
+| One open | The node is a definition or mechanism they must state, and the evidence so far is good |
+| Closed, then open | Confirm recognition fast, then make sure they can produce it (important nodes) |
+| Open, then closed | Their open answer revealed a specific gap or confusion; a closed follow-up with that confusion as a distractor confirms whether it's resolved |
+| Two closed | Two different angles on one idea: one applies it to a new case, one separates it from a confusable neighbour |
+
+Two checks must test different things, or the same thing in a different way. Never ask the same question twice in a new wording. Never more than two checks before moving on; if two checks still leave you unsure, the node needs a repair, not a third check.
+
+**Predictions** can also be either type. Closed is the usual choice, because the options can steer the attempt toward the right territory. Use an open prediction when you want their own model of the problem, unprompted by options.
 
 ### The rhythm
 
-**predict → their answer → explanation + check → their answer → (repair + check)* → the next node's predict.** One question per turn. Never call a question mid-explanation: finish the thought, then fire.
+**predict → their answer → explanation → check (→ follow-up check) → (repair → check)* → the next node's predict.** One question per turn. Never call a question mid-explanation: finish the thought, then fire.
 
 ## What a check must be
 

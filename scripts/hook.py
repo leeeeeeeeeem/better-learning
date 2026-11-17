@@ -22,7 +22,6 @@ from tutorlib.vault import (  # noqa: E402
     append_note,
     bound_record_id,
     find_vault,
-    load_config,
     load_record,
     load_state,
     locked,
@@ -46,25 +45,6 @@ def remember_transcript(vault: Path, sid: str, path: str | None):
     if st["transcripts"].get(sid) != path:
         st["transcripts"][sid] = path
         save_state(vault, st)
-
-
-def explanation_missing(vault: Path, rec: dict, tool_input: dict) -> str | None:
-    """A check may only appear after an explanation. The prose written in the
-    same step as `tutor.py quiz` is on disk by now (that step finished), so
-    the count is reliable here — unlike inside the CLI call itself."""
-    quiz = questions.match_quiz(rec, tool_input.get("questions") or [])
-    if quiz is None or quiz.get("type") != "check":
-        return None
-    need = int(load_config(vault).get("min_explanation_chars", 400))
-    if rec.get("prose_since_answer", 0) >= need:
-        return None
-    return (
-        f"[tutor] Check {quiz['qid']} on node `{quiz['nodeId']}` refused: no explanation since the last answer. "
-        "The explanation is always required. Its length depends on the prediction.\n"
-        "Next:\n1. Write the explanation of the node.\n"
-        "2. Run `tutor.py flush`, so that the explanation reaches the note before the question.\n"
-        "3. Call AskUserQuestion again with the same input. The answer key is still committed."
-    )
 
 
 def handle(payload: dict):
@@ -124,18 +104,7 @@ def handle(payload: dict):
 
         if event == "PreToolUse" and payload.get("tool_name") == mirror.ASK_TOOL:
             mirror.flush(vault, rec, sid)
-            tin = payload.get("tool_input") or {}
-            reason = explanation_missing(vault, rec, tin)
-            if reason:
-                # The refused call still reaches the transcript later; mark it as
-                # handled so a flush neither logs it nor grades it as skipped.
-                tid = payload.get("tool_use_id", "")
-                rec["logged_tool_ids"] += [tid, f"{tid}:answer"]
-                save_record(vault, rec)
-                print(json.dumps({"hookSpecificOutput": {
-                    "hookEventName": event, "permissionDecision": "deny", "permissionDecisionReason": reason}}))
-                return
-            block = mirror.log_ask_question(rec, payload.get("tool_use_id", ""), tin)
+            block = mirror.log_ask_question(rec, payload.get("tool_use_id", ""), payload.get("tool_input") or {})
             if block:
                 append_note(note, block)
             save_record(vault, rec)
