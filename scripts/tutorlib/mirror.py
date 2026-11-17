@@ -28,10 +28,13 @@ ASK_TOOL = "AskUserQuestion"
 MARKER_RE = re.compile(r"⟦(b\d+)⟧")
 
 
-def queue_block(rec: dict, block: str) -> str:
+def queue_block(rec: dict, block: str, echo: str | None = None) -> str:
+    """`echo`: text Claude will repeat in the chat (an open question or a problem
+    statement, so it's visible on a phone). The note already shows it in the
+    block, so the repeated copy is dropped from the prose that follows."""
     rec["block_seq"] = rec.get("block_seq", 0) + 1
     token = f"b{rec['block_seq']}"
-    rec.setdefault("pending_blocks", []).append({"token": token, "block": block})
+    rec.setdefault("pending_blocks", []).append({"token": token, "block": block, "echo": echo})
     return token
 
 
@@ -41,6 +44,8 @@ def place_pending(vault: Path, rec: dict) -> int:
     pending = rec.get("pending_blocks") or []
     for item in pending:
         append_note(note_abspath(vault, rec), item["block"])
+        if item.get("echo"):
+            rec["echo"] = item["echo"]
     rec["pending_blocks"] = []
     return len(pending)
 
@@ -121,10 +126,16 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
     def emit_text():
         if pending_text:
             text = "\n\n".join(pending_text)
+            echo = rec.get("echo")
+            if echo and echo.strip() in text:
+                text = text.replace(echo.strip(), "", 1).strip()
+                rec["echo"] = None
+            pending_text.clear()
+            if not text:
+                return
             out.append(blocks.assistant_block(text, _next_anchor(rec)))
             # Explanation written since the last answered question (gates checks).
             rec["prose_since_answer"] = rec.get("prose_since_answer", 0) + len(text)
-            pending_text.clear()
 
     def emit_queued(content) -> None:
         tokens = set(MARKER_RE.findall(json.dumps(content, ensure_ascii=False)))
@@ -135,6 +146,8 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
             if item["token"] in tokens:
                 emit_text()
                 out.append(item["block"])
+                if item.get("echo"):
+                    rec["echo"] = item["echo"]
             else:
                 keep.append(item)
         rec["pending_blocks"] = keep

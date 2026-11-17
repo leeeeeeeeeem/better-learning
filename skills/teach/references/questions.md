@@ -18,7 +18,7 @@ EOF
 - 2–3 options (AskUserQuestion has 4 slots; the fourth is always "I don't know"). `correct` is the exact text of the correct option, or a list for multi-select (`"multiSelect": true`).
 - Write `explanation` BEFORE `correct` in your head: reason it out first, then commit.
 - Probe phase: omit `type` and `nodeId`. Teach phase: both required.
-- The CLI stores the key, shuffles, and prints an AskUserQuestion payload: **call AskUserQuestion with exactly that input.** Options are labelled A/B/C; the full (LaTeX) text is in the descriptions and rendered in the note. A second question asks their confidence. They can attach their thinking as a note on their selection, or type in "Other".
+- The CLI stores the key, shuffles, and prints an AskUserQuestion payload: **call AskUserQuestion with exactly that input.** Options are labelled A/B/C. Write the question and options in LaTeX as usual: the note shows the LaTeX, and the CLI converts the math to Unicode for the dialog, which doesn't render LaTeX (the terminal, and the Claude app over remote control). A second question asks their confidence. They can attach their thinking as a note on their selection, or type in "Other".
 - A hook grades the answer against the key and returns: verdict, what they picked, the correct answer, confidence, thinking. The note shows them the verdict, the correct answer and your explanation. Never repeat the explanation verbatim; build on it.
 
 ### `tutor recall` (free recall)
@@ -31,11 +31,11 @@ tutor recall <<'EOF'
 EOF
 ```
 
-Then end your turn with one short line (the question is already in the note). Their next message is the answer; the hook reminds you of your commitment. Grade strictly against it (**never revise it after seeing their words**) with `tutor grade q7 --verdict correct|partial|incorrect|dontknow --feedback "..."`, then write your reaction. A near-miss is `partial`: name exactly what they got and what they missed. If they genuinely don't know, that's `dontknow`: a gap, not a wrong answer.
+Then end your turn with the question as your message, copied exactly from the CLI output (one short line before it is fine). The learner may be on a phone, where the note isn't visible; the note mirror drops this copy, since the note already shows the question. Their next message is the answer; the hook reminds you of your commitment. Grade strictly against it (**never revise it after seeing their words**) with `tutor grade q7 --verdict correct|partial|incorrect|dontknow --feedback "..."`, then write your reaction. A near-miss is `partial`: name exactly what they got and what they missed. If they genuinely don't know, that's `dontknow`: a gap, not a wrong answer.
 
 ### Plain AskUserQuestion
 
-For everything with no right answer. They can always pick "Other" and type. If you recommend an option, list it first with "(Recommended)". It's mirrored into the note automatically.
+For everything with no right answer. They can always pick "Other" and type. If you recommend an option, list it first with "(Recommended)". It's mirrored into the note automatically. You write this payload yourself, so write any math in it in Unicode (`√dₖ`, `α`, `x²`), not LaTeX: the dialog doesn't render LaTeX.
 
 ### Order: prose first, in an earlier step
 

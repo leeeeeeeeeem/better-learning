@@ -42,7 +42,7 @@ EOF
 - `mode`: `recall` | `discrimination` | `composition`.
 - `target`: proposition ids from the graph; **omit entirely** when the material isn't in the graph.
 - `solution` is your private commitment, hidden until you conclude. **Solve and shortcut-hunt the problem yourself BEFORE posing**. It is the reveal; conclude shows it verbatim.
-- Only one active problem at a time. Posing ends your turn.
+- Only one active problem at a time. Posing ends your turn: end it with the statement as your message, copied exactly from the CLI output. The learner may be on a phone, where the note isn't visible; the note mirror drops this copy.
 
 ### Their work
 

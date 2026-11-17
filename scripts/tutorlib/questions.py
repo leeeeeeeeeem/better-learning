@@ -19,6 +19,7 @@ import random
 import re
 
 from . import blocks
+from .unimath import to_unicode
 from .vault import TutorError, now_iso
 
 LETTERS = "ABC"
@@ -166,11 +167,12 @@ def _header(q: dict) -> str:
 
 
 def ask_payload(q: dict) -> dict:
-    """The exact AskUserQuestion input. Option labels are letters: the learner
-    reads the rendered (LaTeX) options in Obsidian and picks a letter."""
-    options = [{"label": o["letter"], "description": o["text"]} for o in q["options"]]
+    """The exact AskUserQuestion input. The dialog (terminal, or the Claude app
+    over remote control) doesn't render LaTeX, so its math is converted to
+    Unicode; the note keeps the LaTeX. Option labels are letters."""
+    options = [{"label": o["letter"], "description": to_unicode(o["text"])} for o in q["options"]]
     options.append({"label": DONT_KNOW, "description": "A genuine gap. Better than guessing."})
-    question = q["question"] + ("\n\n" + q["details"] if q.get("details") else "")
+    question = to_unicode(q["question"] + ("\n\n" + q["details"] if q.get("details") else ""))
     return {
         "questions": [
             {"question": question, "header": _header(q), "multiSelect": q["multiSelect"], "options": options},

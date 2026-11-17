@@ -3,7 +3,7 @@
 Everything you write is mirrored into an Obsidian note and read there, rendered. The terminal is just the control panel. So:
 
 - **Structure maximally when it fits.** Headings for the sections a message naturally has; lists and tables for anything enumerable or comparative; code blocks for anything literal. Structure makes content readable at a glance. When in doubt, structure it.
-- **Math is LaTeX, everywhere**: prose, questions, options, explanations, problem statements, answers. Inline `$f(x)$`; display math with `$$` fenced on its own lines:
+- **Math is LaTeX, everywhere**: prose, questions, options, explanations, problem statements, answers. The one exception is a plain AskUserQuestion you write yourself: its dialog doesn't render LaTeX, so use Unicode there. (Graded questions are converted for the dialog automatically.) Inline `$f(x)$`; display math with `$$` fenced on its own lines:
 
   ```
   $$

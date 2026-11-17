@@ -95,11 +95,11 @@ class Session:
         mirror.flush(self.vault, self.rec, self.sid)
         return self
 
-    def append(self, block: str):
+    def append(self, block: str, echo: str | None = None):
         """Queue the block behind the prose written before this command (see
         mirror.MARKER_RE). Outside Claude Code there is no transcript: append now."""
         if self.sid and mirror.transcript_path(self.vault, self.sid):
-            self.tokens.append(mirror.queue_block(self.rec, block))
+            self.tokens.append(mirror.queue_block(self.rec, block, echo))
         else:
             append_note(note_abspath(self.vault, self.rec), block)
 
@@ -433,13 +433,16 @@ def cmd_recall(args):
     spec = read_spec(args)
     with Session() as s:
         q = questions.commit_recall(s.rec, spec, _min_chars(s.vault))
-        s.append(blocks.quiz_question_block(q))
+        shown = q["question"] + ("\n\n" + q["details"] if q.get("details") else "")
+        s.append(blocks.quiz_question_block(q), echo=shown)
         _refresh_plan(s.vault, s.rec)
+    shown = q["question"] + ("\n\n" + q["details"] if q.get("details") else "")
     print(f"Committed {q['qid']}. The note shows the question.\n"
-          "Next:\n1. Write one short line. Ask the learner to answer in their own words.\n"
-          "2. Do not repeat the question. The note shows it.\n"
-          "3. End your turn.\n"
-          "The next message from the learner is the answer.")
+          "Next:\n1. End your turn with the question below as your message, copied exactly. "
+          "You can put one short line before it. Add nothing after it.\n"
+          "The learner may read the chat on a phone, where the note is not visible. "
+          "The note mirror drops this copy, because the note already shows the question.\n"
+          "The next message from the learner is the answer.\n\n" + shown)
 
 
 def cmd_grade(args):
@@ -492,9 +495,13 @@ def cmd_problem(args):
             "submissions": [],
         }
         rec["problems"].append(p)
-        s.append(blocks.problem_block(p))
+        s.append(blocks.problem_block(p), echo=p["statement"])
     print(f"Posed problem {p['n']}. The solution is committed and hidden.\n"
-          "Next: end your turn. Each message from the learner is a submission on this problem.")
+          "Next: end your turn with the statement below as your message, copied exactly. "
+          "You can put one short line before it. Add nothing after it.\n"
+          "The learner may read the chat on a phone, where the note is not visible. "
+          "The note mirror drops this copy, because the note already shows the problem.\n"
+          "Each message from the learner is a submission on this problem.\n\n" + p["statement"])
 
 
 def cmd_conclude(args):
