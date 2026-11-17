@@ -56,6 +56,23 @@ def ref(skill: str, name: str) -> str:
     return str(REFS / skill / "references" / name)
 
 
+# The references each phase depends on. A resumed session skips the moment the
+# skill says "read it when you enter the phase", so resume names them too.
+PHASE_READS = {
+    "probe": ["probe.md", "questions.md", "clarity.md"],
+    "plan": ["method.md", "planning.md", "clarity.md"],
+    "teach": ["teaching.md", "questions.md", "clarity.md", "method.md"],
+}
+
+
+def print_reads(phase: str) -> None:
+    files = PHASE_READS.get(phase)
+    if files:
+        print(f"\nPhase: {phase}. Before your next question, read these files in full with the Read tool:")
+        for f in files:
+            print(f"  {ref('teach', f)}")
+
+
 def read_spec(args) -> dict:
     if getattr(args, "json", None):
         raw = args.json
@@ -237,7 +254,7 @@ def cmd_session_start(args):
     print("Tell the learner to open the note in Obsidian. The note shows the session live.")
     print_paths(vault)
     if kind == "teach":
-        print(f"\nPhase: probe. Read {ref('teach', 'probe.md')} before your first question.")
+        print_reads("probe")
     else:
         if targets:
             print("\nPicked propositions (ids for `problem` targets):")
@@ -304,6 +321,8 @@ def cmd_session_resume(args):
             print(f"  {q['qid']} {q['tool']} {q.get('type') or ''} {q.get('nodeId') or ''}: "
                   f"{q['question'][:90]!r} → {r.get('status') or r.get('verdict') or q['status']}")
     print("\nThe full history is in the note. Read the note before you continue, to update your model of the learner.")
+    if rec["kind"] == "teach":
+        print_reads(rec["phase"])
 
 
 def cmd_session_end(args):
@@ -461,7 +480,10 @@ def cmd_grade(args):
     with Session() as s:
         q = questions.grade_recall(s.rec, args.qid, args.verdict, args.feedback)
         s.append(blocks.recall_grade_block(q))
+        advice = questions.check_advice(s.rec, q)
     print(f"Graded {q['qid']}: {args.verdict}. The note now shows the learner your committed answer.")
+    if advice:
+        print(advice)
 
 
 # ─── practice ────────────────────────────────────────────────────────────────

@@ -110,6 +110,32 @@ def _find_cycle(order: list[str], edges: list[list[str]]) -> list[str] | None:
     return None
 
 
+def node_stats(plan: dict, nid: str) -> dict:
+    """How much of the map depends on a node (descendants), how much it builds
+    on (ancestors), and whether it feeds a sink (the goal) directly."""
+    ids = [n["id"] for n in plan["nodes"]]
+    kids = {i: [b for a, b in plan["edges"] if a == i] for i in ids}
+    pars = {i: [a for a, b in plan["edges"] if b == i] for i in ids}
+
+    def reach(start: str, nxt: dict) -> set:
+        seen, stack = set(), list(nxt.get(start, []))
+        while stack:
+            x = stack.pop()
+            if x not in seen:
+                seen.add(x)
+                stack.extend(nxt.get(x, []))
+        return seen
+
+    sinks = {i for i in ids if not kids[i]}
+    return {
+        "others": max(1, len(ids) - 1),
+        "descendants": len(reach(nid, kids)),
+        "ancestors": len(reach(nid, pars)),
+        "in_degree": len(pars.get(nid, [])),
+        "feeds_goal": any(k in sinks for k in kids.get(nid, [])) or nid in sinks,
+    }
+
+
 def statuses(rec: dict) -> dict[str, str]:
     plan = rec.get("plan") or {"nodes": []}
     ids = {n["id"] for n in plan["nodes"]}

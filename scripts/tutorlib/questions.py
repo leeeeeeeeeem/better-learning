@@ -20,6 +20,7 @@ import re
 
 from . import blocks
 from .unimath import to_unicode
+from . import plan as planlib
 from .vault import TutorError, now_iso
 
 LETTERS = "ABC"
@@ -298,6 +299,88 @@ def grade_quiz(q: dict, tool_input: dict, tool_response) -> str:
     lines.append("The note already shows the learner the verdict, the correct answer, and your explanation. "
                  "Do not repeat the explanation.")
     return "\n".join(lines)
+
+
+# ─── check advice ────────────────────────────────────────────────────────────
+#
+# The doctrine leaves the check mix to the teacher, but a long session drifts
+# into one closed check per node. So the verdict that reaches the teacher also
+# carries the evidence for this node and a suggestion, at the moment the
+# decision is made.
+
+
+def _weak(q: dict) -> str | None:
+    r = q.get("result") or {}
+    if r.get("status") in ("incorrect", "dontknow", "other") or r.get("verdict") in ("incorrect", "dontknow"):
+        return "the prediction was wrong or unknown" if q.get("type") == "predict" else None
+    if r.get("verdict") == "partial":
+        return "the answer was only partly right"
+    conf = r.get("confidence")
+    if isinstance(conf, (int, float)) and conf <= 50:
+        return f"the answer was right, but at {int(conf)}% confidence"
+    return None
+
+
+def _importance(rec: dict, nid: str) -> list[str]:
+    plan = rec.get("plan")
+    if not plan:
+        return []
+    st = planlib.node_stats(plan, nid)
+    out = []
+    if st["descendants"] / st["others"] >= 0.4:
+        out.append(f"foundation node ({st['descendants']} of {st['others']} other nodes depend on it)")
+    if st["in_degree"] >= 3 or (st["in_degree"] >= 2 and st["ancestors"] / st["others"] >= 0.5):
+        out.append(f"synthesis node (builds on {st['ancestors']} of {st['others']} other nodes)")
+    if st["feeds_goal"]:
+        out.append("it feeds the goal directly")
+    return out
+
+
+def check_advice(rec: dict, q: dict) -> str:
+    """Next-step advice after a graded teach-phase question (prediction or check)."""
+    node = q.get("nodeId")
+    if not node or q.get("phase") == "probe":
+        return ""
+    if q.get("type") == "predict":
+        reasons = _importance(rec, node)
+        # Low confidence is normal on a prediction (it's a guess about something
+        # not taught yet), so only a wrong or unknown prediction counts here.
+        r = q.get("result") or {}
+        if r.get("status") in ("incorrect", "dontknow") or r.get("verdict") in ("incorrect", "dontknow"):
+            reasons.append("the prediction was wrong or unknown")
+        q["advice_checks"] = 2 if reasons else 1
+        lines = [f"[tutor] Next for node `{node}`: write the explanation (its length depends on this prediction), "
+                 "run `tutor.py flush`, then the check."]
+        if reasons:
+            lines.append("Suggested checks: two, at least one open (`tutor.py recall`). Reasons: " + "; ".join(reasons) + ".")
+        else:
+            lines.append("Suggested checks: one. A closed check is enough, unless the node is a definition or "
+                         "mechanism the learner must state in their own words. Then use an open check.")
+        lines.append("This is a suggestion. Decide from the evidence (teaching.md, \"Choosing the checks\").")
+        return "\n".join(lines)
+    # a check
+    r = q.get("result") or {}
+    passed = r.get("status") == "correct" or r.get("verdict") in ("correct", "partial")
+    if not passed:
+        return (f"[tutor] Next for node `{node}`: repair. Write a new explanation for this miss, run `tutor.py flush`, "
+                "then check again. Use the other instrument (open or closed) if it shows the gap better.")
+    last_predict = max((i for i, x in enumerate(rec["questions"]) if x.get("nodeId") == node and x.get("type") == "predict"),
+                       default=-1)
+    checks = [x for x in rec["questions"][last_predict + 1:] if x.get("nodeId") == node and x.get("type") == "check"]
+    suggested = rec["questions"][last_predict].get("advice_checks", 1) if last_predict >= 0 else 1
+    weak = _weak(q)
+    if len(checks) >= 2:
+        if weak:
+            return (f"[tutor] Node `{node}` had {len(checks)} checks and {weak}. Do not add another check. "
+                    "If you are still unsure, repair the node, then check again.")
+        return f"[tutor] Next: the prediction for the next node."
+    if len(checks) < suggested or weak:
+        why = weak or "the suggestion for this node was two checks"
+        other = ("make it open (`tutor.py recall`), so the learner states the idea in their own words"
+                 if q["tool"] == "quiz" else
+                 "make it closed, with the confusion you saw as a distractor, or open on a different angle")
+        return f"[tutor] Next for node `{node}`: a follow-up check ({why}). The first check was {'closed' if q['tool'] == 'quiz' else 'open'}: {other}."
+    return "[tutor] Next: the prediction for the next node."
 
 
 # ─── free recall ─────────────────────────────────────────────────────────────

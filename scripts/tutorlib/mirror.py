@@ -93,7 +93,8 @@ def log_ask_answer(rec: dict, tool_use_id: str, tool_input: dict, tool_response)
     if quiz is not None and quiz["status"] in ("committed", "asked"):
         quiz["tool_use_id"] = tool_use_id
         verdict = questions.grade_quiz(quiz, tool_input, tool_response)
-        return blocks.quiz_answer_block(quiz), verdict
+        advice = questions.check_advice(rec, quiz)
+        return blocks.quiz_answer_block(quiz), verdict + ("\n" + advice if advice else "")
     answers, notes = questions.extract_answers(tool_input, tool_response)
     return blocks.ask_answer_block(answers, notes), None
 
