@@ -22,8 +22,8 @@ The task gives you the source path, a title, and the CLI (`python3 .../tutor.py`
 
 1. Run `tutor graph digest --source "<source path>"`. It shows the propositions and chains that the graph already holds from this source. If the output is not empty, you are continuing an earlier extraction: build on it.
 2. Read the source.
-   - In a session note, only the teacher's prose is material. The teacher's prose is in the blocks under `> [!abstract] CLAUDE` headers. A block id line such as `^t12` comes before each block.
-   - Ignore the learner's messages, the questions, the answers, and the verdicts. They are evidence about the learner, not knowledge about the subject.
+   - In a session note, only the teacher's prose is material. The teacher's prose is the plain text outside callouts (callouts are the lines that start with `>`). A block id line such as `^t12` comes before each passage of teacher prose.
+   - Ignore every callout: the learner's messages (`YOU`), the questions (`Probe`, `Predict`, `Check`), the answers, and the verdicts. They are evidence about the learner, not knowledge about the subject.
    - In a notes file, all the text is material.
    - For a long source, work in parts of a few thousand words. Merge after each part, so that the next part builds on the earlier parts.
 

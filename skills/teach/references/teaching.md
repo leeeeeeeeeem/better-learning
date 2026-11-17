@@ -54,7 +54,7 @@ End with the node's conclusion stated, usually as the `> [!IMPORTANT]` callout.
 
 ### 3. The checks: data for you
 
-After the explanation, check that the node landed. Write the explanation, run `tutor flush`, then run the check command (see [questions.md](questions.md#order-prose-first-in-an-earlier-step) for why). A closed check comes in the same turn: **don't end the turn and wait for "ready".** The learner reads in Obsidian, where your explanation sits above the question; the terminal dialog waits while they read. An open check ends your turn, because they answer by typing. In the note, checks arrive **collapsed** ("Check your understanding") so they don't distract from the reading; predictions arrive open.
+After the explanation, check that the node landed. Write the explanation, run `tutor flush`, then run the check command (see [questions.md](questions.md#order-prose-first-in-an-earlier-step) for why). A closed check comes in the same turn: **don't end the turn and wait for "ready".** The learner reads in Obsidian, where your explanation sits above the question; the terminal dialog waits while they read. An open check ends your turn, because they answer by typing. In the note, every question is shown open, titled by its role: **Probe**, **Predict**, or **Check**.
 
 Its verdict is your continuation data: continue, repair, or reclarify. **A wrong answer means resume teaching**: diagnose, repair, re-teach (that's a new explanation, sized to the miss), then check again. A passed check either moves on to the next node's prediction, or, when the evidence calls for it, gets one follow-up check.
 

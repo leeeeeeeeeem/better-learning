@@ -259,9 +259,8 @@ def append_note(path: Path, text: str) -> None:
         fh.write(prefix + text.rstrip("\n") + "\n")
 
 
-def callout(kind: str, title: str, body: str | list[str] = "", collapsed: bool = False) -> str:
-    fold = "-" if collapsed else ""
-    lines = [f"> [!{kind}]{fold} {title}".rstrip()]
+def callout(kind: str, title: str, body: str | list[str] = "") -> str:
+    lines = [f"> [!{kind}] {title}".rstrip()]
     body_lines = body.split("\n") if isinstance(body, str) else body
     if isinstance(body, str) and not body:
         body_lines = []
