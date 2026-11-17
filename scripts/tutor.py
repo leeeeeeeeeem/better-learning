@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tutor — the CLI behind the tutor plugin's skills.
+"""tutor: the CLI behind the tutor plugin's skills.
 
 Every command that writes into a session note first flushes the conversation
 mirror, so blocks land in reading order. Refusals print a message and exit 1:
@@ -243,7 +243,7 @@ def cmd_session_start(args):
             print("\nPicked propositions (ids for `problem` targets):")
             for nid in targets:
                 n = g["nodes"][nid]
-                print(f"  [{nid}] {n['name']} — {n['statement']}")
+                print(f"  [{nid}] {n['name']}: {n['statement']}")
                 for c in graph.chains_of(g, nid):
                     nm = lambda i: g["nodes"].get(i, {}).get("name", i)  # noqa: E731
                     print(f"      chain: {' + '.join(nm(p) for p in c['premises'])} ⇒ {nm(c['conclusion'])}")
@@ -393,7 +393,8 @@ def cmd_plan(args):
         if rec["phase"] == "probe":
             rec["phase"] = "plan"
         note = note_abspath(s.vault, rec)
-        plan_path = folder(s.vault, "Plans") / f"{note.stem} — plan.md"
+        # Keep an existing plan note's name: older session notes embed it.
+        plan_path = (s.vault / rec["plan_note"]) if rec.get("plan_note") else folder(s.vault, "Plans") / f"{note.stem} plan.md"
         rec["plan_note"] = rel(s.vault, plan_path)
         plan.write_note(plan_path, rec, note.stem)
         s.append(blocks.plan_embed_block(plan_path.stem, revised))
@@ -553,7 +554,7 @@ def _print_nodes(nodes, g):
     for n in nodes:
         born = g["sources"].get(graph.birth_source(n) or "", {}).get("title", graph.birth_source(n))
         al = f" (aka {', '.join(n['aliases'])})" if n["aliases"] else ""
-        print(f"[{n['id']}] {n['name']}{al} — {n['statement']}  ⟨born: {born}⟩")
+        print(f"[{n['id']}] {n['name']}{al}: {n['statement']}  ⟨born: {born}⟩")
 
 
 def cmd_graph(args):

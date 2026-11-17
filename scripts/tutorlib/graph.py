@@ -8,7 +8,7 @@ came from. Every proposition is rendered as an Obsidian note whose links
 
 The merge is deterministic: the extractor agent submits NEW propositions and
 chains, plus identity links (`linkTo`) for propositions that ARE an existing
-node — paraphrases merge into the existing node's aliases + provenance.
+node; paraphrases merge into the existing node's aliases + provenance.
 """
 
 from __future__ import annotations
@@ -227,7 +227,7 @@ def digest(g: dict, ref: str) -> str:
     if not ours and not our_chains:
         return ""
     name = lambda i: g["nodes"].get(i, {}).get("name", i)  # noqa: E731
-    lines = ["THE GRAPH SO FAR — everything already extracted from this source (reference these ids verbatim):"]
+    lines = ["THE GRAPH SO FAR: everything already extracted from this source (reference these ids verbatim):"]
     lines += [f"  {n['id']} | {n['name']} | {' '.join(n['statement'].split())}" for n in ours]
     if our_chains:
         lines.append("DERIVATIONS ALREADY RECORDED (build on these; do not re-derive them):")

@@ -1,7 +1,7 @@
 """Markdown blocks written into session notes.
 
 The note is meant to be read rendered in Obsidian while the session runs, so a
-question block NEVER contains the correct answer or explanation — those are
+question block NEVER contains the correct answer or explanation; those are
 appended only once the learner has answered.
 """
 
@@ -60,11 +60,11 @@ def _q_title(q: dict) -> tuple[str, bool]:
     node = f" · `{q['nodeId']}`" if q.get("nodeId") else ""
     kind = "Recall" if q["tool"] == "recall" else "Quiz"
     if q.get("type") == "check":
-        return f"Check your understanding — {kind.lower()}{node}", True
+        return f"Check your understanding ({kind.lower()}){node}", True
     if q.get("type") == "predict":
-        return f"Predict — {kind.lower()}{node}", False
+        return f"Predict ({kind.lower()}){node}", False
     if q.get("phase") == "probe":
-        return f"Probe — {kind.lower()}", False
+        return f"Probe ({kind.lower()})", False
     return f"{kind}{node}", False
 
 
@@ -103,7 +103,7 @@ def quiz_answer_block(q: dict) -> str:
     r = q.get("result") or {}
     status = r.get("status")
     if status == "cancelled":
-        return callout("warning", "Quiz — skipped", ["(no answer)"])
+        return callout("warning", "Quiz skipped", ["(no answer)"])
     letters = {o["letter"]: o["text"] for o in q["options"]}
     body: list[str] = []
     if status == "dontknow":
@@ -146,7 +146,7 @@ def recall_grade_block(q: dict) -> str:
         body += r["feedback"].split("\n") + [""]
     body.append("*Committed answer:*")
     body += q["answer_key"].split("\n")
-    return callout(kind, f"Recall — {title}", body)
+    return callout(kind, f"Recall: {title}", body)
 
 
 def ask_question_block(questions: list[dict]) -> str:
@@ -157,7 +157,7 @@ def ask_question_block(questions: list[dict]) -> str:
         if opts:
             body.append("")
             for i, o in enumerate(opts, 1):
-                desc = f" — {o['description']}" if o.get("description") else ""
+                desc = f": {o['description']}" if o.get("description") else ""
                 body.append(f"{i}. {o.get('label', '')}{desc}")
         blocks.append(callout("question", item.get("header") or "Question", body))
     return "\n\n".join(blocks)
@@ -165,7 +165,7 @@ def ask_question_block(questions: list[dict]) -> str:
 
 def ask_answer_block(answers: dict, notes: dict) -> str:
     if not answers:
-        return callout("warning", "Question — skipped", ["(no answer)"])
+        return callout("warning", "Question skipped", ["(no answer)"])
     body: list[str] = []
     for question, answer in answers.items():
         if len(answers) > 1:
@@ -188,8 +188,8 @@ def probe_block(assessment: dict) -> str:
     if assessment.get("summary"):
         body += assessment["summary"].split("\n") + [""]
     for s in assessment["strands"]:
-        body.append(f"- **{s['strand']}** — {s['assessment']}")
-    return callout("abstract", "Where you stand — probe assessment", body)
+        body.append(f"- **{s['strand']}**: {s['assessment']}")
+    return callout("abstract", "Where you stand: probe assessment", body)
 
 
 def plan_embed_block(plan_note_name: str, revised: bool) -> str:
@@ -222,5 +222,5 @@ def conclude_block(p: dict) -> str:
         meta.append("marked for retest")
     if meta:
         body += ["", "*" + " · ".join(meta) + "*"]
-    out = callout(kind, f"Problem {p['n']} — {label}", body)
+    out = callout(kind, f"Problem {p['n']}: {label}", body)
     return out + "\n\n" + callout("example", "Model solution", p["solution"].split("\n"), collapsed=True)

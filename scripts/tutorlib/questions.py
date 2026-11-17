@@ -142,7 +142,7 @@ def ask_payload(q: dict) -> dict:
     """The exact AskUserQuestion input. Option labels are letters: the learner
     reads the rendered (LaTeX) options in Obsidian and picks a letter."""
     options = [{"label": o["letter"], "description": o["text"]} for o in q["options"]]
-    options.append({"label": DONT_KNOW, "description": "A genuine gap — better than guessing"})
+    options.append({"label": DONT_KNOW, "description": "A genuine gap. Better than guessing."})
     question = q["question"] + ("\n\n" + q["details"] if q.get("details") else "")
     return {
         "questions": [

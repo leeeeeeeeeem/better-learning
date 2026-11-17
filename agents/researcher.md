@@ -46,6 +46,14 @@ If a field that you need is missing, make a reasonable assumption and state it u
 
 If you cannot do the research (the tools fail, or no reliable source exists), say so in the brief. Do not invent facts. Do not invent sources. Keep the uncertainty of a source in your text: if a source says "probably", do not write "certainly".
 
+## Writing style
+
+The learner reads your output. Write plain prose with no LLM tells:
+- No em dashes (—). Use a period, a comma, a colon, or parentheses.
+- No stock phrases: "the key difference is", "it's worth noting", "crucially", "at its core", "in essence", "delve", "here's the thing", "in summary". State the content instead.
+- No self-answered rhetorical questions, no triplets for rhythm, no "powerful"/"elegant"/"robust".
+- Use one name for each concept, and say so when two names mean the same thing.
+
 ## Output
 
 Your final message is the brief, in this format:
@@ -55,14 +63,14 @@ Your final message is the brief, in this format:
 2–3 sentences that answer the question directly.
 
 ## Findings
-1. **Finding** — explanation. [Source](url)
+1. **Finding**: explanation. [Source](url)
 
 ## Sources
-- Kept: Source title (url) — why it is relevant
-- Dropped: Source title — why you excluded it
+- Kept: Source title (url). Why it is relevant.
+- Dropped: Source title. Why you excluded it.
 
 ## Gaps
 What you could not answer. Assumptions you made. Suggested next steps.
 ```
 
-If DELIVERABLE names a folder, also save the brief there with Write. Name the file `Research — <short topic>.md` and start it with `# <the question>`. Then put this line at the end of your final message: `saved: [[Research — <short topic>]]`. Your final message must contain the full brief in both cases, because the teacher reads your message, not the file.
+If DELIVERABLE names a folder, also save the brief there with Write. Name the file `<short topic> (research).md` and start it with `# <the question>`. Then put this line at the end of your final message: `saved: [[<short topic> (research)]]`. Your final message must contain the full brief in both cases, because the teacher reads your message, not the file.

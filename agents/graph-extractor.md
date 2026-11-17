@@ -75,6 +75,14 @@ Write the findings to a scratch file (`mktemp`). Then run `tutor graph merge --s
 
 If the merge fails (`ERROR: findings rejected: …`), the message lists the problems. Fix the file and run the merge again. Identical chains merge into one automatically.
 
+## Writing style
+
+The learner reads your output. Write plain prose with no LLM tells:
+- No em dashes (—). Use a period, a comma, a colon, or parentheses.
+- No stock phrases: "the key difference is", "it's worth noting", "crucially", "at its core", "in essence", "delve", "here's the thing", "in summary". State the content instead.
+- No self-answered rhetorical questions, no triplets for rhythm, no "powerful"/"elegant"/"robust".
+- Use one name for each concept, and say so when two names mean the same thing.
+
 ## Output
 
 One short paragraph:

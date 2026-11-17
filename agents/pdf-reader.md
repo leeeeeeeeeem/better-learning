@@ -37,6 +37,14 @@ Do these steps in this order.
 
 If `pdftotext` or `pdfinfo` is not installed, use the Read tool with the `pages` parameter directly (20 pages or fewer per call). If the document does not answer the question, say so. Do not invent content.
 
+## Writing style
+
+The learner reads your output. Write plain prose with no LLM tells:
+- No em dashes (—). Use a period, a comma, a colon, or parentheses.
+- No stock phrases: "the key difference is", "it's worth noting", "crucially", "at its core", "in essence", "delve", "here's the thing", "in summary". State the content instead.
+- No self-answered rhetorical questions, no triplets for rhythm, no "powerful"/"elegant"/"robust".
+- Use one name for each concept, and say so when two names mean the same thing.
+
 ## Output
 
 Your final message is your complete result:
@@ -45,4 +53,4 @@ Your final message is your complete result:
 - A citation (p. N) after each claim.
 - A last line: `Pages consulted: N, N, …`, with every page that you extracted or read.
 
-If DELIVERABLE names a folder, also save the result there with Write. Name the file `PDF — <short topic>.md`. Start it with `# <the question>` and the file name of the PDF. Then put this line at the end of your final message: `saved: [[PDF — <short topic>]]`.
+If DELIVERABLE names a folder, also save the result there with Write. Name the file `<short topic> (PDF).md`. Start it with `# <the question>` and the file name of the PDF. Then put this line at the end of your final message: `saved: [[<short topic> (PDF)]]`.

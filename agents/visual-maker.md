@@ -1,6 +1,6 @@
 ---
 name: visual-maker
-description: Hand-authors ONE precise SVG figure from a brief (coordinate geometry, number lines, vectors, function plots, physical layouts — figures that auto-layout diagrams cannot express). Renders it to PNG, LOOKS at the render, iterates until the figure is correct, and publishes it into the Obsidian vault. Returns the filename to embed. Give it the tutor's brief format with a FIGURE field.
+description: Hand-authors ONE precise SVG figure from a brief (coordinate geometry, number lines, vectors, function plots, physical layouts: figures that auto-layout diagrams cannot express). Renders it to PNG, LOOKS at the render, iterates until the figure is correct, and publishes it into the Obsidian vault. Returns the filename to embed. Give it the tutor's brief format with a FIGURE field.
 tools: Write, Edit, Read, Bash
 model: sonnet
 ---

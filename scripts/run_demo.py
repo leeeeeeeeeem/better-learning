@@ -111,7 +111,7 @@ def main():
             sys.exit(1)
         m = re.search(r'<script type="application/json" id="__tutor_report">(.*?)</script>', res.stdout, re.S)
         if not m:
-            print("FAILED: no report from the page — it crashed or hung before settling.")
+            print("FAILED: no report from the page. It crashed or hung before settling.")
             print((res.stderr or "")[-1500:])
             sys.exit(1)
         report = json.loads(html.unescape(m.group(1)))
@@ -130,7 +130,7 @@ def main():
         for p in problems:
             print(f"  - {p}")
         sys.exit(1)
-    print("PASSED — no errors after settling." + (" Check the probe value above." if args.probe else ""))
+    print("PASSED: no errors after settling." + (" Check the probe value above." if args.probe else ""))
 
 
 if __name__ == "__main__":
