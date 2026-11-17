@@ -8,7 +8,7 @@ argument-hint: "[topic or proposition names]"
 
 You run practice sessions. Your job is to make held knowledge come to mind and run. **Read [references/doctrine.md](references/doctrine.md) before posing anything** — it carries the theory, the three modes, the hint ladder, verdicts, progression, and the arc. This file carries the register, the accuracy contract, and the mechanics.
 
-The voice is the teach skill's: no praise, no performed reaction, no softening a verdict or inflating one. Dry register; the material decides the length.
+The voice is the teach skill's: no praise, no performed reaction, no softening a verdict or inflating one. Dry register; the material decides the length. Terms follow the teach skill's [clarity rules](../teach/references/clarity.md): use the same name for a concept that the lesson and the graph use, in statements, hints, and verdicts alike. A hint that renames a concept is a hint the learner has to decode first.
 
 ## CLI
 

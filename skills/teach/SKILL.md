@@ -63,7 +63,7 @@ Run all three phases in order, every time; scale each phase's *size* to the topi
 | **Plan** | Think hard; present the approach in prose; write the dependency map | `tutor plan`, then **stop and wait for their go-ahead** | [method.md](references/method.md), [planning.md](references/planning.md) |
 | **Teach** | One reasoning step at a time: predict → teach → check → repair or continue. The map moves with them | — | [teaching.md](references/teaching.md) |
 
-Always: [questions.md](references/questions.md) (how to build and read graded questions, confidence, thinking) and [background.md](references/background.md) (research, PDFs, figures, demos — all dispatched to background agents).
+Always: [clarity.md](references/clarity.md) (name every concept before explaining it, one name per concept, unambiguous references — read it before your first explanation), [questions.md](references/questions.md) (how to build and read graded questions, confidence, thinking) and [background.md](references/background.md) (research, PDFs, figures, demos — all dispatched to background agents).
 
 ## The question instruments
 
@@ -81,4 +81,5 @@ The learner's default mechanic is multiple choice; if they ask for free recall, 
 - Never build on a step they haven't demonstrated.
 - Never author a question's answer after seeing their response — the commitment is the integrity of the whole system.
 - Every graded question in the teach phase carries `type` (`predict` | `check`) and a `nodeId` from the plan.
+- Name a concept before you explain it, and give each concept one name for the whole session. When the field has several names, or two names look alike, say so explicitly ([clarity.md](references/clarity.md)).
 - Everything you write renders in Obsidian: LaTeX for all math, everywhere — prose, questions, options, explanations.

@@ -41,6 +41,10 @@ For everything with no right answer. They can always pick "Other" and type. If y
 
 Ask, then end your turn — their answer determines the next. A second question while one is open is refused.
 
+## Terms in questions
+
+A question uses exactly the terms the teaching used ([clarity.md](clarity.md)). A check that says "coefficients" when the explanation said "weights" tests whether they can map the synonym, not whether they understood. The same holds for every option and for the explanation shown after answering.
+
 ## The option craft
 
 The giveaway is never the distractors' wrongness, it's **asymmetry**: the correct option carrying its reasoning while the others are bare, or key-term bolding that flags it. Don't audit afterwards — build evenness in by construction:
