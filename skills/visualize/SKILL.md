@@ -21,7 +21,7 @@ The most common failure is cramming. Before briefing, prune: for each element as
 - BAD: "a picture about vectors"
 - GOOD: "Axes from −1 to 5 on both. Vector **u** = (3,1) from the origin in blue, **v** = (1,2) drawn tip-to-tail from (3,1), their sum (4,3) from the origin dashed. Label u, v, u+v near their midpoints. No grid."
 
-Include the CLI path and the viz folder (`tutor paths`). It returns `filename: viz-…png` (or `NONE` with a reason — simplify, rethink, or drop the visual).
+Use the brief template in [the teach skill's background reference](../teach/references/background.md): the elements go in its `FIGURE:` field, and `CLI` comes from `tutor paths`. It returns `filename: viz-…png` (or `NONE` with a reason — simplify, rethink, or drop the visual).
 
 ## Embed
 

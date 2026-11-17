@@ -9,13 +9,14 @@ Ten seconds of dragging a slider teaches more than a paragraph about frequency r
 
 ## Brief
 
-Dispatch the **`demo-builder`** agent in the background. It never sees the conversation — the brief is its whole world. Include:
+Dispatch the **`demo-builder`** agent in the background. It never sees the conversation — the brief is its whole world. Use the brief template in [the teach skill's background reference](../teach/references/background.md), with these demo fields:
 
-- `title` — short.
-- The concept, precisely.
-- Every parameter/control and what it does; the interactions; what should be visible.
-- Formulas and constants needed (in plain math the builder can implement).
-- The CLI path and demos folder (`tutor paths`).
+- `TITLE` — short.
+- `TASK` — the concept, precisely.
+- `CONTROLS` — every parameter/control, its range, and what it changes.
+- `FORMULAS` — every formula and constant, in plain math the builder can implement.
+- `DELIVERABLE` — the interactions, what should be visible, the visual style.
+- `CLI` — the path from `tutor paths`.
 
 A vague brief yields a vague demo. Announce it in a sentence and keep explaining while it builds.
 

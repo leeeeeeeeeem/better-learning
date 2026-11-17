@@ -80,27 +80,27 @@ def merge(vault: Path, g: dict, source: str, findings: dict, title: str | None =
     props = findings.get("propositions")
     chains = findings.get("chains")
     if props is None or chains is None:
-        raise TutorError('findings must carry both "propositions" and "chains" (use [] when empty).')
+        raise TutorError('Findings must include "propositions" and "chains". Use [] for an empty list.')
     local_ids = set()
     problems: list[str] = []
     for p in props:
         for f in ("id", "name", "statement"):
             if not str(p.get(f, "")).strip():
-                problems.append(f"proposition {p.get('id', '?')}: `{f}` is required")
+                problems.append(f"proposition {p.get('id', '?')}: `{f}` is missing")
         if p.get("id") in local_ids:
-            problems.append(f"duplicate local id {p.get('id')}")
+            problems.append(f"local id {p.get('id')} is used more than one time")
         local_ids.add(p.get("id"))
         if p.get("linkTo") and p["linkTo"] not in g["nodes"]:
             problems.append(f"proposition {p['id']}: linkTo {p['linkTo']} is not an existing node id")
     for c in chains:
         prem, concl = c.get("premises") or [], c.get("conclusion")
         if not prem:
-            problems.append("a chain needs at least one premise — a bare idea rides the propositions list alone")
+            problems.append("a chain needs at least one premise. Put an idea with no argument in the propositions list only")
         for x in [*prem, concl]:
             if x not in local_ids and x not in g["nodes"]:
-                problems.append(f'chain endpoint "{x}" is neither a submitted id nor an existing node id')
+                problems.append(f'chain endpoint "{x}" is not a submitted id and not an existing node id')
         if concl in prem:
-            problems.append(f"chain: conclusion {concl} cannot be its own premise")
+            problems.append(f"chain: conclusion {concl} is also a premise. Remove it from the premises")
     if problems:
         raise TutorError("findings rejected:\n- " + "\n- ".join(sorted(set(problems))))
 
@@ -151,7 +151,7 @@ def merge(vault: Path, g: dict, source: str, findings: dict, title: str | None =
 
 def delete_node(g: dict, nid: str) -> int:
     if nid not in g["nodes"]:
-        raise TutorError(f"No node {nid}")
+        raise TutorError(f"No node matches {nid!r}.")
     del g["nodes"][nid]
     before = len(g["chains"])
     g["chains"] = [c for c in g["chains"] if nid != c["conclusion"] and nid not in c["premises"]]
@@ -186,7 +186,7 @@ def resolve_source(g: dict, ref: str) -> str | None:
 def by_source(g: dict, ref: str) -> list[dict]:
     key = resolve_source(g, ref)
     if key is None:
-        raise TutorError(f"No graph source matches {ref!r} — see `tutor.py graph sessions`.")
+        raise TutorError(f"No graph source matches {ref!r}. To list the sources, run `tutor.py graph sessions`.")
     return [n for n in g["nodes"].values() if birth_source(n) == key]
 
 

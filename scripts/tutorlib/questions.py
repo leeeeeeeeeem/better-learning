@@ -50,43 +50,48 @@ def _phase_fields(rec: dict, spec: dict, tool: str) -> dict:
     `type` and a valid `nodeId` (that tag is what moves the live plan map)."""
     if rec["phase"] == "probe":
         if spec.get("type") or spec.get("nodeId"):
-            raise TutorError("Probe-phase questions take no `type`/`nodeId` — there is no plan yet.")
+            raise TutorError("Probe questions do not take `type` or `nodeId`. The session has no plan yet.")
         return {"phase": "probe", "type": None, "nodeId": None}
     qtype = spec.get("type")
     if qtype not in ("predict", "check"):
-        raise TutorError(f"{tool}: `type` is required — \"predict\" (before teaching the step) or \"check\" (after).")
+        raise TutorError(
+            f"{tool}: `type` is missing. Use \"predict\" before you teach the step. Use \"check\" after you teach the step."
+        )
     node = spec.get("nodeId")
     plan = rec.get("plan")
     if plan:
         ids = [n["id"] for n in plan["nodes"]]
         if node not in ids:
             raise TutorError(
-                f"{tool}: `nodeId` must be one of the plan's node ids: {', '.join(ids)}. "
-                "For an off-map question use AskUserQuestion directly."
+                f"{tool}: `nodeId` must be a node id from the plan: {', '.join(ids)}. "
+                "For a question that is not about a plan node, use AskUserQuestion directly."
             )
     elif node:
-        raise TutorError(f"{tool}: there is no plan yet — call `tutor.py plan` first, or omit nodeId.")
+        raise TutorError(
+            f"{tool}: the session has no plan yet. To ask now, remove `nodeId`. "
+            "To tag the question, write the plan with `tutor.py plan` first."
+        )
     return {"phase": rec["phase"], "type": qtype, "nodeId": node}
 
 
 def commit_quiz(rec: dict, spec: dict) -> tuple[dict, dict]:
     if (q := open_question(rec)) is not None:
-        raise TutorError(f"Question {q['qid']} is still open — one question per turn. Let the learner answer it first.")
+        raise TutorError(f"Question {q['qid']} is open. Ask one question per turn. Wait for the answer of the learner.")
     for field in ("question", "options", "correct", "explanation"):
         if not spec.get(field):
-            raise TutorError(f"quiz: `{field}` is required.")
+            raise TutorError(f"quiz: `{field}` is missing.")
     options = [str(o).strip() for o in spec["options"]]
     if not 2 <= len(options) <= 3:
         raise TutorError(
-            "quiz: give 2–3 options (AskUserQuestion holds 4 slots; the fourth is always \"I don't know\")."
+            "quiz: give 2 or 3 options. AskUserQuestion holds 4 options, and the fourth option is always \"I don't know\"."
         )
     if len(set(options)) != len(options):
-        raise TutorError("quiz: options must be distinct.")
+        raise TutorError("quiz: two options have the same text. Make each option different.")
     correct = spec["correct"] if isinstance(spec["correct"], list) else [spec["correct"]]
     correct = [str(c).strip() for c in correct]
     missing = [c for c in correct if c not in options]
     if missing:
-        raise TutorError(f"quiz: correct answer(s) {missing} must match an option's text exactly.")
+        raise TutorError(f"quiz: each correct answer must be the exact text of one option. These do not match: {missing}.")
     multi = bool(spec.get("multiSelect")) or len(correct) > 1
     fields = _phase_fields(rec, spec, "quiz")
 
@@ -238,9 +243,9 @@ def grade_quiz(q: dict, tool_input: dict, tool_response) -> str:
     if st == "cancelled":
         lines.append("The learner skipped the question.")
     elif st == "dontknow":
-        lines.append("Answer: I don't know — a genuine gap, not a wrong answer (no confidence).")
+        lines.append("Answer: I don't know. This is a gap, not a wrong answer. There is no confidence value.")
     elif st == "other":
-        lines.append(f"The learner typed instead of choosing: {result['text']!r}. Read it as their answer and respond.")
+        lines.append(f"The learner typed text and did not select an option: {result['text']!r}. Use this text as their answer.")
     else:
         lines.append(f"Verdict: {'CORRECT' if st == 'correct' else 'INCORRECT'}.")
         lines.append("Picked: " + "; ".join(f"{l}. {letters[l]}" for l in result["picked"]))
@@ -248,7 +253,8 @@ def grade_quiz(q: dict, tool_input: dict, tool_response) -> str:
         conf = result.get("confidence")
         lines.append(f"Confidence: {conf}%" if conf is not None else "Confidence: not given")
     lines.append(f"Thinking: {thinking}" if thinking else "Thinking: (none)")
-    lines.append("The learner has already seen the verdict, correct answer and explanation in the note.")
+    lines.append("The note already shows the learner the verdict, the correct answer, and your explanation. "
+                 "Do not repeat the explanation.")
     return "\n".join(lines)
 
 
@@ -257,10 +263,10 @@ def grade_quiz(q: dict, tool_input: dict, tool_response) -> str:
 
 def commit_recall(rec: dict, spec: dict) -> dict:
     if (q := open_question(rec)) is not None:
-        raise TutorError(f"Question {q['qid']} is still open — one question per turn.")
+        raise TutorError(f"Question {q['qid']} is open. Ask one question per turn. Wait for the answer of the learner.")
     for field in ("question", "answer"):
         if not spec.get(field):
-            raise TutorError(f"recall: `{field}` is required (answer = your full committed answer, reasoning included).")
+            raise TutorError(f"recall: `{field}` is missing. `answer` is your full committed answer, with the reasoning.")
     fields = _phase_fields(rec, spec, "recall")
     q = {
         "qid": _next_qid(rec),
@@ -288,24 +294,27 @@ def record_recall_answer(q: dict, text: str) -> str:
     q["status"] = "answered"
     q["result"] = {"text": text, "answered": now_iso()}
     return (
-        f"[tutor] This message is the learner's answer to recall question {q['qid']}: {q['question']!r}.\n"
-        f"Your COMMITTED answer (grade strictly against it — never revise it now): {q['answer_key']}\n"
-        "Grade it with `tutor.py grade " + q["qid"] + " --verdict correct|partial|incorrect|dontknow "
-        "--feedback \"...\"` BEFORE writing your reaction. A near-miss is partial: name exactly what they "
-        "got and what they missed. Their text may be dictated speech — read it leniently for transcription noise."
+        f"[tutor] This message is the answer of the learner to recall question {q['qid']}: {q['question']!r}.\n"
+        f"Your committed answer: {q['answer_key']}\n"
+        "Next:\n"
+        "1. Grade the answer against your committed answer. Do not change the committed answer.\n"
+        f"2. Run `tutor.py grade {q['qid']} --verdict correct|partial|incorrect|dontknow --feedback \"...\"`.\n"
+        "3. Write your reaction.\n"
+        "A partly correct answer is `partial`. In the feedback, state what the learner got and what the learner missed. "
+        "The learner may dictate answers. Ignore transcription errors."
     )
 
 
 def grade_recall(rec: dict, qid: str, verdict: str, feedback: str | None) -> dict:
     q = next((x for x in rec["questions"] if x["qid"] == qid), None)
     if q is None or q["tool"] != "recall":
-        raise TutorError(f"No recall question {qid} in this session.")
+        raise TutorError(f"Recall question {qid} does not exist in this session.")
     if q["status"] == "asked":
-        raise TutorError(f"{qid} has no answer yet — wait for the learner.")
+        raise TutorError(f"{qid} has no answer yet. Wait for the answer of the learner.")
     if q["status"] == "graded":
-        raise TutorError(f"{qid} is already graded.")
+        raise TutorError(f"{qid} is already graded. Do not grade it again.")
     if verdict not in ("correct", "partial", "incorrect", "dontknow"):
-        raise TutorError("--verdict must be correct, partial, incorrect, or dontknow.")
+        raise TutorError("--verdict must be one of: correct, partial, incorrect, dontknow.")
     q["result"] = {**(q.get("result") or {}), "verdict": verdict, "feedback": feedback, "graded": now_iso()}
     q["status"] = "graded"
     return q

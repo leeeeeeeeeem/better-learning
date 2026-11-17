@@ -41,7 +41,7 @@ def parse(mermaid: str) -> dict:
     lines = [l for l in text.splitlines() if l.strip() and not l.strip().startswith("%%")]
     problems: list[str] = []
     if not lines or not HEADER_RE.match(lines[0]):
-        problems.append("The block must start with `graph TD` (or another graph/flowchart direction).")
+        problems.append("The block must start with `graph TD`, or with another graph or flowchart direction.")
     else:
         lines = lines[1:]
     nodes: dict[str, str] = {}
@@ -50,7 +50,7 @@ def parse(mermaid: str) -> dict:
     for line in lines:
         s = line.strip().rstrip(";")
         if re.match(r"^(subgraph|end|style|classDef|class|linkStyle|click)\b", s):
-            problems.append(f"Unsupported line (no subgraphs/styles/classes): {s}")
+            problems.append(f"Unsupported line: {s}. Subgraphs, styles, and classes are not allowed.")
             continue
         parts = [p for p in EDGE_SPLIT.split(s) if p.strip()]
         ids = []
@@ -58,7 +58,7 @@ def parse(mermaid: str) -> dict:
             part = re.sub(r"^\|[^|]*\|\s*", "", part.strip())  # drop edge labels -->|x|
             nid, title = _node_token(part)
             if not SLUG_RE.match(nid):
-                problems.append(f"Invalid node id `{nid}` — ids are lowercase slugs (a-z, 0-9, -, _).")
+                problems.append(f"Invalid node id `{nid}`. A node id is a lowercase slug (a-z, 0-9, -, _).")
                 continue
             if nid not in nodes:
                 order.append(nid)
@@ -68,14 +68,14 @@ def parse(mermaid: str) -> dict:
             ids.append(nid)
         for a, b in zip(ids, ids[1:]):
             if a == b:
-                problems.append(f"Self-loop on `{a}`.")
+                problems.append(f"Node `{a}` has an edge to itself.")
             elif [a, b] not in edges:
                 edges.append([a, b])
     if not nodes:
         problems.append("The map has no nodes.")
     cyc = _find_cycle(order, edges)
     if cyc:
-        problems.append("Cycle: " + " → ".join(cyc) + " (edges mean 'prerequisite of'; the map must be a DAG).")
+        problems.append("Cycle: " + " → ".join(cyc) + ". An edge means 'prerequisite of', so the map must not have cycles.")
     if problems:
         raise TutorError("plan rejected:\n- " + "\n- ".join(problems))
     return {"nodes": [{"id": n, "title": nodes[n]} for n in order], "edges": edges}

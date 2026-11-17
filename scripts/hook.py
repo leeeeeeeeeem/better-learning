@@ -62,12 +62,12 @@ def handle(payload: dict):
         rid = bound_record_id(vault, sid)
 
         if event == "SessionStart":
-            ctx = f"Tutor vault detected at {vault}. Tutor CLI: `python3 {CLI}`."
+            ctx = f"Tutor vault: {vault}. Tutor CLI: `python3 {CLI}`."
             if rid:
                 rec = load_record(vault, rid)
                 ctx += (f" This conversation is bound to the {rec['kind']} session \"{rec['title']}\" "
-                        f"(phase {rec['phase']}, note {rec['note']}); `tutor.py session resume {rec['id']}` "
-                        "prints its state.")
+                        f"(phase {rec['phase']}). Note: {rec['note']}. "
+                        f"To see the session state, run `tutor.py session resume {rec['id']}`.")
             emit(event, ctx)
             return
 
@@ -89,10 +89,12 @@ def handle(payload: dict):
             elif cleaned and problem and not cleaned.startswith("> [!note]"):
                 append_note(note, blocks.thinking_block(cleaned))
                 problem["submissions"].append({"at": payload.get("timestamp"), "text": cleaned})
-                ctx = (f"[tutor] Thinking submission #{len(problem['submissions'])} on active problem {problem['n']} "
+                ctx = (f"[tutor] Submission {len(problem['submissions'])} on active problem {problem['n']} "
                        f"(mode {problem['mode']}). Your committed solution: {problem['solution']}\n"
-                       "Read the text: a working trace → one hint rung, minimal; a claimed answer → extract the moves "
-                       "and give the verdict. Conclude only when solved or the learner asks to end it.")
+                       "Read the text and decide what it is:\n"
+                       "- A working trace: give one hint rung. Use the smallest hint that helps.\n"
+                       "- A claimed answer: identify the moves and give the verdict.\n"
+                       "Conclude the problem only when the learner solves it or asks to end it.")
             elif cleaned:
                 append_note(note, cleaned if cleaned.startswith("> [!note]") else blocks.user_block(cleaned))
             save_record(vault, rec)

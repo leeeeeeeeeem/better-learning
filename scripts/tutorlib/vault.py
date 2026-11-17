@@ -55,8 +55,8 @@ def require_vault() -> Path:
     v = find_vault()
     if v is None:
         raise TutorError(
-            "No tutor vault found (no .tutor/ directory here or in any parent). "
-            "Ask the learner where their Obsidian vault is, then run `tutor.py init <vault-dir>`."
+            "No tutor vault found. No .tutor/ directory exists here or in a parent directory. "
+            "Ask the learner for the path of their Obsidian vault. Then run `tutor.py init <vault-dir>`."
         )
     return v
 
@@ -154,7 +154,7 @@ def record_path(vault: Path, rid: str) -> Path:
 def load_record(vault: Path, rid: str) -> dict:
     rec = read_json(record_path(vault, rid), None)
     if rec is None:
-        raise TutorError(f"Session record not found: {rid}")
+        raise TutorError(f"Session not found: {rid}.")
     return rec
 
 
@@ -225,8 +225,9 @@ def require_bound(vault: Path) -> dict:
     rid = bound_record_id(vault, sid)
     if not rid:
         raise TutorError(
-            "This Claude session is not bound to a tutor session. Start one with "
-            "`tutor.py session start --kind teach --title ...` (or `session resume <note>`)."
+            "This conversation has no tutor session. "
+            "To start a session, run `tutor.py session start --kind teach --title ...`. "
+            "To continue a session, run `tutor.py session resume <id>`."
         )
     return load_record(vault, rid)
 

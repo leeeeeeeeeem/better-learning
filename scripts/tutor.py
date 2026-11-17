@@ -67,7 +67,7 @@ def read_spec(args) -> dict:
         return json.loads(raw)
     except ValueError as e:
         raise TutorError(
-            f"Invalid JSON ({e}). Remember: inside JSON strings a LaTeX backslash is \\\\ and a newline is \\n."
+            f"The input is not valid JSON ({e}). In a JSON string, write a LaTeX backslash as \\\\ and a newline as \\n."
         )
 
 
@@ -110,9 +110,9 @@ class Session:
 
 def cmd_init(args):
     root = init_vault(Path(args.dir or "."), args.folder)
-    print(f"Tutor vault ready at {root} (content folder: {load_config(root)['folder']}/).")
+    print(f"Tutor vault ready at {root}. Content folder: {load_config(root)['folder']}/.")
     if not (root / ".obsidian").exists():
-        print("Note: no .obsidian/ here yet — open this folder as a vault in Obsidian to read sessions rendered.")
+        print("No .obsidian/ folder exists here yet. Open this folder as a vault in Obsidian to read the sessions.")
 
 
 def cmd_status(args):
@@ -187,7 +187,7 @@ def cmd_session_start(args):
     vault = require_vault()
     sid = current_sid()
     if not sid:
-        raise TutorError("CLAUDE_CODE_SESSION_ID is not set — run this from Claude Code's Bash tool.")
+        raise TutorError("CLAUDE_CODE_SESSION_ID is not set. Run this command from the Bash tool of Claude Code.")
     kind = args.kind
     with locked(vault):
         old = bound_record_id(vault, sid)
@@ -203,7 +203,7 @@ def cmd_session_start(args):
         for t in args.targets or []:
             nid = graph.resolve_node(g, t)
             if nid is None:
-                raise TutorError(f"Unknown proposition {t!r} — see `tutor.py graph find`.")
+                raise TutorError(f"Unknown proposition {t!r}. To find proposition ids, run `tutor.py graph find <term>`.")
             targets.append(nid)
         rec = new_record(vault, kind, args.title, note, sid)
         rec["targets"] = targets
@@ -226,10 +226,10 @@ def cmd_session_start(args):
         save_record(vault, rec)
     print(f"Started {kind} session {rec['id']}: {args.title}")
     print(f"note: {note}")
-    print("Tell the learner to open that note in Obsidian — the session renders there live.")
+    print("Tell the learner to open the note in Obsidian. The note shows the session live.")
     print_paths(vault)
     if kind == "teach":
-        print(f"\nPhase: probe. Read {ref('teach', 'probe.md')} now if you have not.")
+        print(f"\nPhase: probe. Read {ref('teach', 'probe.md')} before your first question.")
     else:
         if targets:
             print("\nPicked propositions (ids for `problem` targets):")
@@ -239,14 +239,14 @@ def cmd_session_start(args):
                 for c in graph.chains_of(g, nid):
                     nm = lambda i: g["nodes"].get(i, {}).get("name", i)  # noqa: E731
                     print(f"      chain: {' + '.join(nm(p) for p in c['premises'])} ⇒ {nm(c['conclusion'])}")
-        print(f"\nRead {ref('practice', 'doctrine.md')} now if you have not.")
+        print(f"\nRead {ref('practice', 'doctrine.md')} before you pose the first problem.")
 
 
 def _find_record(vault: Path, ref_: str) -> dict:
     for r in all_records(vault):
         if ref_ in (r["id"], r["note"], Path(r["note"]).stem, r["title"]) or r["note"].endswith(ref_):
             return r
-    raise TutorError(f"No session matches {ref_!r} — see `tutor.py session list`.")
+    raise TutorError(f"No session matches {ref_!r}. To list the sessions, run `tutor.py session list`.")
 
 
 def cmd_session_resume(args):
@@ -283,7 +283,7 @@ def cmd_session_resume(args):
             r = q.get("result") or {}
             print(f"  {q['qid']} {q['tool']} {q.get('type') or ''} {q.get('nodeId') or ''}: "
                   f"{q['question'][:90]!r} → {r.get('status') or r.get('verdict') or q['status']}")
-    print(f"\nThe full history is in the note — read it to rebuild your model of the learner.")
+    print("\nThe full history is in the note. Read the note before you continue, to update your model of the learner.")
 
 
 def cmd_session_end(args):
@@ -292,7 +292,7 @@ def cmd_session_end(args):
     with locked(vault):
         rid = bound_record_id(vault, sid)
         if not rid:
-            print("No session bound.")
+            print("No session is bound to this conversation.")
             return
         rec = load_record(vault, rid)
         mirror.flush(vault, rec, sid)
@@ -300,9 +300,9 @@ def cmd_session_end(args):
         save_record(vault, rec)
         _hand_off(vault, sid, rec)
         bind(vault, sid, None)
-    print(f"Unbound {rec['title']}. Mirror stopped.")
+    print(f"Ended {rec['title']}. The note mirror is stopped.")
     if rec["kind"] in ("teach", "log"):
-        print(f"To add what was taught to the knowledge graph, dispatch the graph-extractor agent on {vault / rec['note']}.")
+        print(f"To add the taught material to the knowledge graph, dispatch the graph-extractor agent on {vault / rec['note']}.")
 
 
 def cmd_session_list(args):
@@ -324,7 +324,7 @@ def cmd_log_link(args):
     if not path.is_absolute():
         path = (Path.cwd() / path) if (Path.cwd() / path).exists() else vault / path
     if not path.is_file():
-        raise TutorError(f"File does not exist: {path} — /log links into an existing note, it never creates one.")
+        raise TutorError(f"File does not exist: {path}. /log links to an existing note. It does not create notes.")
     with locked(vault):
         old = bound_record_id(vault, sid)
         if old:
@@ -336,7 +336,7 @@ def cmd_log_link(args):
         bind(vault, sid, rec["id"])
         n = _start_mirror(vault, sid, rec)
         save_record(vault, rec)
-    print(f"Linked {path} ({n} blocks backfilled). New conversation turns will mirror into it.")
+    print(f"Linked {path}. Backfilled {n} blocks. New turns of this conversation go into this note.")
 
 
 def cmd_flush(args):
@@ -352,11 +352,11 @@ def cmd_probe_done(args):
     with Session() as s:
         rec = s.rec
         if rec["kind"] != "teach":
-            raise TutorError("probe-done belongs to teaching sessions.")
+            raise TutorError("probe-done is for teaching sessions only.")
         if rec.get("probe"):
-            raise TutorError("The probe is already concluded — probe-done fires exactly once.")
+            raise TutorError("The probe is already concluded. Run probe-done one time only.")
         if (q := questions.open_question(rec)) is not None:
-            raise TutorError(f"Question {q['qid']} is still open — resolve it before concluding the probe.")
+            raise TutorError(f"Question {q['qid']} is open. Wait for the answer before you conclude the probe.")
         strands = spec.get("strands")
         if not isinstance(strands, list) or not strands or not all(
             isinstance(x, dict) and x.get("strand") and x.get("assessment") for x in strands
@@ -365,9 +365,11 @@ def cmd_probe_done(args):
         rec["probe"] = {"goal": spec.get("goal"), "summary": spec.get("summary"), "strands": strands, "at": now_iso()}
         rec["phase"] = "plan"
         s.append(blocks.probe_block(rec["probe"]))
-    print("Probe concluded and recorded in the note.")
-    print(f"Now plan. Read {ref('teach', 'planning.md')} and {ref('teach', 'method.md')}, think hard, "
-          "then present the approach in prose and write the map with `tutor.py plan`.")
+    print("Probe concluded. The note shows the assessment.")
+    print(f"Next:\n1. Read {ref('teach', 'planning.md')} and {ref('teach', 'method.md')}.\n"
+          "2. Plan carefully. This is the step with the most effect on the session.\n"
+          "3. Write the approach in prose.\n"
+          "4. Write the plan map with `tutor.py plan`.")
 
 
 def cmd_plan(args):
@@ -375,7 +377,7 @@ def cmd_plan(args):
     with Session() as s:
         rec = s.rec
         if rec["kind"] != "teach":
-            raise TutorError("plan belongs to teaching sessions.")
+            raise TutorError("plan is for teaching sessions only.")
         parsed = plan.parse(text)
         revised = rec.get("plan") is not None
         rec["plan"] = parsed
@@ -387,10 +389,11 @@ def cmd_plan(args):
         plan.write_note(plan_path, rec, note.stem)
         s.append(blocks.plan_embed_block(plan_path.stem, revised))
     print(json.dumps({"ok": True, "nodeIds": [n["id"] for n in parsed["nodes"]]}))
-    print("These are the plan's node ids — the only valid nodeId values for every quiz and recall from here on.")
+    print("These are the node ids of the plan. From now on, every quiz and recall must use one of them as `nodeId`.")
     if not revised:
-        print("The map is now embedded in the note: do not redraw it in prose. Ask the learner to confirm the plan, "
-              f"then END YOUR TURN. Before teaching, read {ref('teach', 'teaching.md')}.")
+        print("The note now shows the map. Do not draw the plan again in your prose.\n"
+              "Next:\n1. Ask the learner to confirm the plan.\n2. End your turn.\n"
+              f"3. Before you teach, read {ref('teach', 'teaching.md')}.")
 
 
 def _refresh_plan(vault: Path, rec: dict):
@@ -406,8 +409,9 @@ def cmd_quiz(args):
     with Session() as s:
         q, payload = questions.commit_quiz(s.rec, spec)
         _refresh_plan(s.vault, s.rec)
-    print(f"Committed {q['qid']} (answer key stored; options shuffled). Now call AskUserQuestion with EXACTLY this "
-          "input, then end your turn when the verdict comes back:")
+    print(f"Committed {q['qid']}. The answer key is stored and the options are shuffled.\n"
+          "Next:\n1. Call AskUserQuestion with the input below. Do not change it.\n"
+          "2. Read the verdict that the hook returns. Then continue the session.")
     print(json.dumps(payload, indent=2, ensure_ascii=False))
 
 
@@ -417,15 +421,18 @@ def cmd_recall(args):
         q = questions.commit_recall(s.rec, spec)
         s.append(blocks.quiz_question_block(q))
         _refresh_plan(s.vault, s.rec)
-    print(f"Committed {q['qid']} and posted it to the note. End your turn now with one short line asking the learner "
-          "to answer in their own words (don't restate the question — it's in the note). Their next message is the answer.")
+    print(f"Committed {q['qid']}. The note shows the question.\n"
+          "Next:\n1. Write one short line. Ask the learner to answer in their own words.\n"
+          "2. Do not repeat the question. The note shows it.\n"
+          "3. End your turn.\n"
+          "The next message from the learner is the answer.")
 
 
 def cmd_grade(args):
     with Session() as s:
         q = questions.grade_recall(s.rec, args.qid, args.verdict, args.feedback)
         s.append(blocks.recall_grade_block(q))
-    print(f"Graded {q['qid']}: {args.verdict}. The learner now sees your committed answer in the note.")
+    print(f"Graded {q['qid']}: {args.verdict}. The note now shows the learner your committed answer.")
 
 
 # ─── practice ────────────────────────────────────────────────────────────────
@@ -445,20 +452,20 @@ def cmd_problem(args):
     with Session() as s:
         rec = s.rec
         if (p := active_problem(rec)) is not None:
-            raise TutorError(f"Problem {p['n']} is still active — conclude it before posing the next one.")
+            raise TutorError(f"Problem {p['n']} is active. Conclude it before you pose the next problem.")
         for f in ("statement", "mode", "solution"):
             if not spec.get(f):
-                raise TutorError(f"problem: `{f}` is required.")
+                raise TutorError(f"problem: `{f}` is missing.")
         if spec["mode"] not in MODES:
-            raise TutorError(f"problem: mode must be one of {', '.join(MODES)}.")
+            raise TutorError(f"problem: `mode` must be one of: {', '.join(MODES)}.")
         targets = []
         if spec.get("target"):
             g = graph.load(s.vault)
             for t in spec["target"]:
                 nid = graph.resolve_node(g, t)
                 if nid is None:
-                    raise TutorError(f"target {t!r} is not a known proposition — use ids from the session context, "
-                                     "or omit target entirely when the material is not in the graph.")
+                    raise TutorError(f"Target {t!r} is not a known proposition. Use ids from the session context. "
+                                     "If the material is not in the graph, remove `target`.")
                 targets.append(nid)
         p = {
             "n": len(rec["problems"]) + 1,
@@ -472,8 +479,8 @@ def cmd_problem(args):
         }
         rec["problems"].append(p)
         s.append(blocks.problem_block(p))
-    print(f"Posed problem {p['n']} (solution committed, hidden). End your turn — the learner works in the chat; "
-          "each message they send is a thinking submission on this problem.")
+    print(f"Posed problem {p['n']}. The solution is committed and hidden.\n"
+          "Next: end your turn. Each message from the learner is a submission on this problem.")
 
 
 def cmd_conclude(args):
@@ -482,17 +489,17 @@ def cmd_conclude(args):
         rec = s.rec
         p = active_problem(rec)
         if p is None:
-            raise TutorError("No active problem to conclude — pose one first.")
+            raise TutorError("No problem is active. Pose a problem first.")
         if spec.get("outcome") not in OUTCOMES:
-            raise TutorError(f"conclude: outcome must be one of {', '.join(OUTCOMES)}.")
+            raise TutorError(f"conclude: `outcome` must be one of: {', '.join(OUTCOMES)}.")
         if not spec.get("verdict"):
-            raise TutorError("conclude: `verdict` is required.")
+            raise TutorError("conclude: `verdict` is missing.")
         if spec.get("rung") not in (None, *RUNGS):
-            raise TutorError("conclude: rung must be R0–R5 or null.")
+            raise TutorError("conclude: `rung` must be R0–R5 or null.")
         if spec.get("missClass") not in (None, *MISSES):
-            raise TutorError(f"conclude: missClass must be one of {', '.join(MISSES)} or null.")
+            raise TutorError(f"conclude: `missClass` must be one of: {', '.join(MISSES)}, or null.")
         if not isinstance(spec.get("retest"), bool):
-            raise TutorError("conclude: retest (true/false) is required.")
+            raise TutorError("conclude: `retest` is missing. Use true or false.")
         p["conclusion"] = {k: spec.get(k) for k in ("outcome", "verdict", "rung", "missClass", "retest")}
         p["status"] = "concluded"
         p["concluded"] = now_iso()
@@ -505,8 +512,9 @@ def cmd_conclude(args):
             })
             graph.save(s.vault, g)
             graph.render_notes(s.vault, g)
-    print(f"Concluded problem {p['n']} — the model solution is revealed in the note. Say your closing words if useful, "
-          "then END YOUR TURN. Pose the next problem only on the learner's explicit go-ahead.")
+    print(f"Concluded problem {p['n']}. The note now shows the model solution.\n"
+          "Next:\n1. If useful, write your closing words on the work of the learner.\n2. End your turn.\n"
+          "Pose the next problem only when the learner asks for it.")
 
 
 def cmd_practice_status(args):
@@ -521,7 +529,7 @@ def cmd_practice_status(args):
                  f"{' · RETEST' if c.get('retest') else ''}" if c else ""))
     pending = [p for p in rec["problems"] if (p.get("conclusion") or {}).get("retest")]
     if pending:
-        print("Retest before ending (fresh surface): " + ", ".join(f"P{p['n']}" for p in pending))
+        print("Retest these problems in a new surface before the session ends: " + ", ".join(f"P{p['n']}" for p in pending))
     for nid in rec.get("targets", []):
         hist = graph.practice_history(g, nid)
         if hist:
@@ -576,7 +584,7 @@ def cmd_graph(args):
     elif args.gcmd == "chains":
         nid = graph.resolve_node(g, args.node) if args.node else None
         if args.node and nid is None:
-            raise TutorError(f"No node {args.node!r}")
+            raise TutorError(f"No node matches {args.node!r}.")
         nm = lambda i: g["nodes"].get(i, {}).get("name", i)  # noqa: E731
         for c in graph.chains_of(g, nid):
             print(f"{' + '.join(c['premises'])} ⇒ {c['conclusion']}   "
@@ -584,7 +592,7 @@ def cmd_graph(args):
     elif args.gcmd == "show":
         nid = graph.resolve_node(g, args.id)
         if nid is None:
-            raise TutorError(f"No node {args.id!r}")
+            raise TutorError(f"No node matches {args.id!r}.")
         print(json.dumps({**g["nodes"][nid], "chains": graph.chains_of(g, nid),
                           "practice": graph.practice_history(g, nid)}, indent=2, ensure_ascii=False))
     elif args.gcmd == "digest":
@@ -606,17 +614,17 @@ def cmd_render_svg(args):
             continue
         res = subprocess.run([exe, *cmd[1:]], capture_output=True, text=True, timeout=60)
         if res.returncode == 0 and out.exists():
-            print(f"Rendered {out} — now LOOK at it with the Read tool.")
+            print(f"Rendered {out}. Now look at it with the Read tool.")
             return
         last = res.stderr or res.stdout
-    raise TutorError(f"SVG render FAILED — fix the source and render again.\n{last}")
+    raise TutorError(f"SVG render failed. Fix the source and render again.\n{last}")
 
 
 def cmd_publish(args):
     vault = require_vault()
     src = Path(args.path)
     if not src.is_file():
-        raise TutorError(f"No file {src}")
+        raise TutorError(f"File not found: {src}.")
     sub = "viz" if args.kind == "viz" else "demos"
     slug = "".join(c if c.isalnum() else "-" for c in args.slug.lower()).strip("-") or args.kind
     name = f"{args.kind}-{slug}-{int(time.time())}{src.suffix}"
