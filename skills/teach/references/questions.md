@@ -117,15 +117,15 @@ If, reading the finished set cold, you can tell which is right without knowing t
 
 ### Thinking: their understanding, out loud
 
-Every instrument carries a thinking channel (the note on their selection, the "Other" text, their free-recall words, any message). These are the session's **primary data**: their framing, their mental models, the nuances, where their picture differs from the real one. Read every word and measure what it reveals, not just the answer it carries. One answer is one bit; the thinking is the picture. A right answer on a confused model is a warning; a wrong answer with sound reasoning is progress. Your model of them updates on every submission: what to ask next, how to phrase it, whether the plan itself is wrong about them. Their thinking is often dictated speech: read it leniently for transcription noise.
+Every instrument carries a thinking channel (the note on their selection, the "Other" text, any message). In an open (recall) answer, their reasoning is in the answer text itself. These are the session's **primary data**: their framing, their mental models, the nuances, where their picture differs from the real one. Read every word and measure what it reveals, not just the answer it carries. One answer is one bit; the thinking is the picture. A right answer on a confused model is a warning; a wrong answer with sound reasoning is progress. Your model of them updates on every submission: what to ask next, how to phrase it, whether the plan itself is wrong about them. Their thinking is often dictated speech: read it leniently for transcription noise.
 
 ### Confidence
 
-Every quiz answer carries their stated probability (25/50/75/95%) that their pick is correct. Read it against the verdict:
+Every quiz answer carries their stated probability (25/50/75/95%) that their pick is correct. Read it alongside the verdict and their reasoning, never as proof of understanding on its own:
 
 - 50 is a coin flip. 95 claims certainty; 25 claims real doubt. For an n-option question chance is 1/n: confidence at or below chance means they believe their pick is wrong: a forced choice they distrust. Treat it as honesty, not error.
-- **Correct + high:** solid. Move on.
+- **Correct + high:** usually solid, but a confident pick alone doesn't establish a floor: check that their reasoning holds up too.
 - **Correct + low:** fragile knowledge or a lucky guess. One reinforcing touch, not celebration.
-- **Wrong + high:** the strongest signal you can receive: a committed misconception. Name the crack, probe it, re-teach around it.
-- **Wrong + low:** a shaky near-miss or an honest gap. A small correction usually suffices.
+- **Wrong + high:** may be a committed misconception. In the probe, follow it up when the distinction would change the lesson. In teaching, name the crack and repair it (on the smallest concrete case) before building on that step.
+- **Wrong + low:** a shaky near-miss or an honest gap. A small correction usually suffices, and a failed check is still repaired and re-checked before building on it.
 - **"I don't know":** no confidence; they declined to guess. A genuine gap, never a wrong answer.
