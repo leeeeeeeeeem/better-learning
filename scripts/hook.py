@@ -85,8 +85,9 @@ def handle(payload: dict):
             recall = questions.recall_awaiting_answer(rec)
             problem = next((p for p in rec.get("problems", []) if p["status"] == "active"), None)
             if cleaned and recall and not cleaned.startswith("> [!note]"):
-                append_note(note, blocks.recall_answer_block(cleaned))
-                ctx = questions.record_recall_answer(recall, cleaned)
+                # Only a candidate: it may be an aside. The grade marks what was graded.
+                append_note(note, blocks.user_block(cleaned))
+                ctx = questions.record_recall_candidate(recall, cleaned)
             elif cleaned and problem and not cleaned.startswith("> [!note]"):
                 append_note(note, blocks.thinking_block(cleaned))
                 problem["submissions"].append({"at": payload.get("timestamp"), "text": cleaned})

@@ -312,8 +312,8 @@ def cmd_session_resume(args):
               "Next: after your resume message, call AskUserQuestion with this input. Do not change it:")
         print(json.dumps(questions.ask_payload(q), indent=2, ensure_ascii=False))
     elif q is not None:
-        print(f"\nOpen question: {q['qid']} (recall) has no answer yet. Repeat it as your message, copied exactly; "
-              "the next message from the learner is the answer:\n" + q["question"])
+        print(f"\nOpen question: {q['qid']} (recall) is not graded yet. Repeat it as your message, copied exactly; "
+              "the next message from the learner is a candidate answer:\n" + q["question"])
     if rec["kind"] == "teach" and rec.get("plan") and not rec.get("terms"):
         print("\nTerm registry: empty. This session predates the define-before-use check, so every teach-phase "
               "question and explanation will be refused until the registry holds what the learner already has.\n"
@@ -524,13 +524,18 @@ def cmd_recall(args):
           "You can put one short line before it. Add nothing after it.\n"
           "The learner may read the chat on a phone, where the note is not visible. "
           "The note mirror drops this copy, because the note already shows the question.\n"
-          "The next message from the learner is the answer.\n\n" + shown)
+          "The next message from the learner is a candidate answer: it may also be an aside. The hook tells you how to "
+          "tell them apart.\n\n" + shown)
 
 
 def cmd_grade(args):
     with Session() as s:
-        q = questions.grade_recall(s.rec, args.qid, args.verdict, args.feedback)
-        s.append(blocks.recall_grade_block(q))
+        before = next((x for x in s.rec["questions"] if x["qid"] == args.qid), {}) or {}
+        n_cands = len(before.get("candidates") or [])
+        q = questions.grade_recall(s.rec, args.qid, args.verdict, args.feedback, args.answer)
+        # The learner's message is already in the note. Quote the graded text only
+        # when it is not simply the one message just above.
+        s.append(blocks.recall_grade_block(q, show_answer=bool(args.answer) or n_cands > 1))
         advice = questions.check_advice(s.rec, q)
     print(f"Graded {q['qid']}: {args.verdict}. The note now shows the learner your committed answer.")
     if advice:
@@ -845,6 +850,7 @@ def main(argv=None):
     p.add_argument("qid")
     p.add_argument("--verdict", required=True)
     p.add_argument("--feedback")
+    p.add_argument("--answer", help="the learner's full answer, when it is spread over several messages")
     p.set_defaults(fn=cmd_grade)
     sub.add_parser("practice-status").set_defaults(fn=cmd_practice_status)
 

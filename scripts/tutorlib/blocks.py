@@ -139,7 +139,7 @@ def recall_answer_block(text: str) -> str:
     return callout("quote", "Your answer", text.strip().split("\n"))
 
 
-def recall_grade_block(q: dict) -> str:
+def recall_grade_block(q: dict, show_answer: bool = False) -> str:
     r = q.get("result") or {}
     verdict = r.get("verdict")
     kind, title = {
@@ -147,8 +147,11 @@ def recall_grade_block(q: dict) -> str:
         "partial": ("warning", "Partly right"),
         "incorrect": ("failure", "Incorrect ✗"),
         "dontknow": ("question", "I don't know"),
+        "skipped": ("info", "Skipped"),
     }.get(verdict, ("info", str(verdict)))
     body: list[str] = []
+    if show_answer and r.get("text"):
+        body += ["*Graded answer:*"] + r["text"].strip().split("\n") + [""]
     if r.get("feedback"):
         body += dedash(r["feedback"]).split("\n") + [""]
     body.append("*Committed answer:*")

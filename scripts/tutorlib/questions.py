@@ -8,8 +8,13 @@ the learner sees the question, and grading runs against that commitment.
           PostToolUse(AskUserQuestion) hook → deterministic grading, answer
                                               block, verdict back to Claude
   recall  tutor.py recall → stores the committed answer, question block
-          UserPromptSubmit hook → the learner's reply becomes the answer
-          tutor.py grade  → verdict + committed answer revealed
+          UserPromptSubmit hook → each learner message becomes a CANDIDATE
+                                  answer (it may be an aside instead)
+          tutor.py grade  → verdict on the chosen candidate + committed
+                            answer revealed
+
+Teach-phase questions also declare `uses` (see terms.py), and a check needs a
+`tutor explain` block for its node since the last answer.
 """
 
 from __future__ import annotations
@@ -437,32 +442,61 @@ def recall_awaiting_answer(rec: dict) -> dict | None:
     return q if q and q["tool"] == "recall" and q["status"] == "asked" else None
 
 
-def record_recall_answer(q: dict, text: str) -> str:
-    q["status"] = "answered"
-    q["result"] = {"text": text, "answered": now_iso()}
+def record_recall_candidate(q: dict, text: str) -> str:
+    """A learner message while a recall question is open. It is only a candidate:
+    it may be the answer, an addition or correction to an earlier candidate, or an
+    aside (a question about the material, a request, logistics)."""
+    cands = q.setdefault("candidates", [])
+    cands.append({"n": len(cands) + 1, "text": text, "at": now_iso()})
+    earlier = ""
+    if len(cands) > 1:
+        earlier = ("\nEarlier candidates for this question (not graded): "
+                   + " | ".join(f"#{c['n']}: {c['text'][:200]!r}" for c in cands[:-1]))
     return (
-        f"[tutor] This message is the answer of the learner to recall question {q['qid']}: {q['question']!r}.\n"
+        f"[tutor] Recall question {q['qid']} is open: {q['question']!r}.\n"
+        f"This message is candidate #{cands[-1]['n']}. Decide what it is before you act:\n"
+        "- The answer (or a corrected or completed version of an earlier candidate): grade it against your "
+        f"committed answer with `tutor.py grade {q['qid']} --verdict correct|partial|incorrect|dontknow --feedback \"...\"`. "
+        "The grade uses the latest candidate. If the answer is spread over several candidates, add "
+        "`--answer \"<the learner's full answer, combined>\"`. Then write your reaction.\n"
+        "- An aside (a question about the material, a request to clarify or resend, logistics, a complaint): do NOT grade. "
+        "Answer it (for teaching content, `tutor.py explain` without --node), then end your turn by repeating the open "
+        "question. It stays open, and nothing is recorded as the answer.\n"
+        "- A request to skip the question: `tutor.py grade "
+        f"{q['qid']} --verdict skipped --feedback \"...\"`.\n"
         f"Your committed answer: {q['answer_key']}\n"
-        "Next:\n"
-        "1. Grade the answer against your committed answer. Do not change the committed answer.\n"
-        f"2. Run `tutor.py grade {q['qid']} --verdict correct|partial|incorrect|dontknow --feedback \"...\"`.\n"
-        "3. Write your reaction.\n"
-        "A partly correct answer is `partial`. In the feedback, state what the learner got and what the learner missed. "
-        "The learner may dictate answers. Ignore transcription errors."
+        "Do not change the committed answer. A partly correct answer is `partial`: in the feedback, state what the learner "
+        "got and what they missed. The learner may dictate answers. Ignore transcription errors."
+        + earlier
     )
 
 
-def grade_recall(rec: dict, qid: str, verdict: str, feedback: str | None) -> dict:
+VERDICTS = ("correct", "partial", "incorrect", "dontknow", "skipped")
+
+
+def grade_recall(rec: dict, qid: str, verdict: str, feedback: str | None, answer: str | None = None) -> dict:
     q = next((x for x in rec["questions"] if x["qid"] == qid), None)
     if q is None or q["tool"] != "recall":
         raise TutorError(f"Recall question {qid} does not exist in this session.")
-    if q["status"] == "asked":
-        raise TutorError(f"{qid} has no answer yet. Wait for the answer of the learner.")
     if q["status"] == "graded":
         raise TutorError(f"{qid} is already graded. Do not grade it again.")
-    if verdict not in ("correct", "partial", "incorrect", "dontknow"):
-        raise TutorError("--verdict must be one of: correct, partial, incorrect, dontknow.")
-    q["result"] = {**(q.get("result") or {}), "verdict": verdict, "feedback": feedback, "graded": now_iso()}
+    if verdict not in VERDICTS:
+        raise TutorError("--verdict must be one of: " + ", ".join(VERDICTS) + ".")
+    cands = q.get("candidates") or []
+    legacy = (q.get("result") or {}).get("text") if q["status"] == "answered" else None
+    if verdict == "skipped":
+        text = None
+    elif answer:
+        text = answer.strip()
+    elif cands:
+        text = cands[-1]["text"]
+    elif legacy:
+        text = legacy
+    else:
+        raise TutorError(f"{qid} has no answer yet. Wait for the answer of the learner.")
+    q["result"] = {**(q.get("result") or {}), "text": text, "verdict": verdict, "feedback": feedback,
+                   "answered": (cands[-1]["at"] if cands else (q.get("result") or {}).get("answered")),
+                   "graded": now_iso()}
     q["status"] = "graded"
     rec["prose_since_answer"] = 0
     rec["explained_since_answer"] = []
