@@ -25,13 +25,15 @@ Naming the destination doesn't spoil a discovery. Socratic discovery is about *h
 
 ## 3. Define at first use, and relate it to its neighbours
 
+**Nothing reaches the learner undefined.** A term or symbol may appear in an explanation, a setup or a question only if it was (a) taught: defined in a `tutor explain` block, in this session or an earlier one; (b) shown held: the probe demonstrated they know it (`held`); or (c) defined right there, in the block's `terms:` header. "They probably know it", "it was in a probe question" and "it is standard" are not sources. A term that appeared only inside a question (a probe question, an option) was shown, not taught. The CLI checks the declared `uses` and scans for symbols, but it can't see every word: you are responsible for the rest, including terms in prose that the scan can't recognise.
+
 - A new term gets a one-sentence definition **the first time it appears**, not later.
 - When a new term resembles one already in the session, state the relation: *the same thing as*, *a special case of*, *a part of*, or *different from (because…)*. Don't leave the learner to infer it.
 - A term from an earlier session can be linked instead of redefined: `[[Proposition name]]`.
 
 ## 4. Notation is terminology too
 
-- Introduce each symbol in words when it first appears: "$Q$, the query matrix".
+- Introduce each symbol in words when it first appears: "$Q$, the query matrix", with its shape when it has one. A shape alone ($W_{down} \in \mathbb{R}^{64 \times 768}$) is not a definition, and a table cell is not a definition.
 - One symbol, one meaning, for the whole session. Don't reuse a letter for something new; don't switch between two symbols for one quantity ($d_k$ and $d$).
 - If the learner's material uses a different notation from the standard one, use theirs, and say so once.
 

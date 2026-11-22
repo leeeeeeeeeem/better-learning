@@ -39,11 +39,12 @@ tutor probe-done <<'EOF'
 {"goal": "…concrete goal…",
  "summary": "optional synthesis: where teaching should enter",
  "strands": [{"strand": "the derivative as a limit",
-              "assessment": "Floor: … Ceiling: … Misconceptions: … Build from: …"}]}
+              "assessment": "Floor: … Ceiling: … Misconceptions: … Build from: …"}],
+ "held": [{"term": "limit", "evidence": "q2"}, {"term": "$f'(x)$", "evidence": "q4"}]}
 EOF
 ```
 
-One entry per strand, written from the evidence. Exactly once; refused while a question is open. It appears in the note as their assessment. Then move straight on to planning (same turn is fine). Read [planning.md](planning.md).
+One entry per strand, written from the evidence. Add `"held"`: the terms and symbols the probe showed they hold, each with the question that showed it (`{"term": "system call", "evidence": "q2"}`). These, plus terms taught in explanations, are the only ones you may use without defining them; list them generously but honestly (a term that appeared in a question they got wrong is not held). Exactly once; refused while a question is open. It appears in the note as their assessment. Then move straight on to planning (same turn is fine). Read [planning.md](planning.md).
 
 ## Grounding: their material, not their description of it
 
