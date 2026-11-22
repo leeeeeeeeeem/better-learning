@@ -1,6 +1,6 @@
 # Formatting: they receive documents, not chat messages
 
-Everything you write is mirrored into an Obsidian note and read there, rendered. The terminal is just the control panel. So:
+The session is read in an Obsidian note, rendered. The terminal is just the control panel. Teaching content reaches the note through `tutor explain` (written at once, in order); chat prose is mirrored too, but late, so keep the chat to one-line pointers and reactions. So:
 
 - **Structure maximally when it fits.** Headings for the sections a message naturally has; lists and tables for anything enumerable or comparative; code blocks for anything literal. Structure makes content readable at a glance. When in doubt, structure it.
 - **Math is LaTeX, everywhere**: prose, questions, options, explanations, problem statements, answers. The one exception is a plain AskUserQuestion you write yourself: its dialog doesn't render LaTeX, so use Unicode there. (Graded questions are converted for the dialog automatically.) Inline `$f(x)$`; display math with `$$` fenced on its own lines:

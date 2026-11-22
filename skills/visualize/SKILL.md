@@ -25,4 +25,4 @@ Use the brief template in [the teach skill's background reference](../teach/refe
 
 ## Embed
 
-`![[viz-<slug>-<ts>.png|500]]` in your reply (wider for dense figures). Introduce it in a sentence, then let it carry the idea. Don't narrate every element back in prose.
+`![[viz-<slug>-<ts>.png|500]]` in your next `tutor explain` block (wider for dense figures). Introduce it in a sentence, then let it carry the idea. Don't narrate every element back in prose.

@@ -46,7 +46,9 @@ EOF
 
 A refusal prints `ERROR: ...`. Read it, fix the call, retry.
 
-**The note.** The session lives in an Obsidian note (`Learning/Sessions/<date> <title>.md`). Hooks mirror everything into it as it happens: your prose, their messages, every question when it pops up, every graded answer. The learner reads the session *there*, rendered: LaTeX, mermaid, callouts, embedded figures. So you write documents, not chat messages; see [references/formatting.md](references/formatting.md).
+**The note.** The session lives in an Obsidian note (`Learning/Sessions/<date> <title>.md`). The learner reads the session *there*, rendered: LaTeX, mermaid, callouts, embedded figures. So you write documents, not chat messages; see [references/formatting.md](references/formatting.md).
+
+**Teaching content goes through `tutor explain`, never through chat prose.** Every explanation, setup, repair and clarification is written with `tutor explain` (markdown on stdin, with a `terms:`/`uses:` header). The CLI writes it into the note at once, in order, and registers the terms it defines. Chat prose is still mirrored, but late (only after your step ends), and prose you only *think* never reaches anyone: in past sessions whole explanations existed only in the model's thinking. So the chat carries one-line pointers and reactions; the note carries the teaching. Their messages, every question and every graded answer are mirrored by hooks.
 
 **Start / resume.**
 1. `tutor status`. If no vault is found, ask the learner (AskUserQuestion) where their Obsidian vault is, then `tutor init <vault-dir>`. Claude Code must run inside the vault (or `TUTOR_VAULT` must point to it) for the mirror hooks to see it.
@@ -71,7 +73,7 @@ Always: [clarity.md](references/clarity.md) (name every concept before explainin
 | Instrument | When | How |
 |---|---|---|
 | **quiz** (closed, multiple choice) | Anything with a correct answer: they recognize it | `tutor quiz` commits the answer key, shuffles, and prints an AskUserQuestion payload → call AskUserQuestion with it **verbatim** → a hook grades it and hands you the verdict, confidence, and their thinking. |
-| **recall** (open, short) | Anything with a correct answer: they produce it in their own words | `tutor recall` commits your full answer and posts the question → end your turn → their next message is the answer (a hook hands you your commitment) → `tutor grade <qid> --verdict ...` → then react. |
+| **recall** (open, short) | Anything with a correct answer: they produce it in their own words | `tutor recall` commits your full answer and posts the question → end your turn → their next message is a *candidate* answer (a hook hands you your commitment): it may be an aside instead → grade it with `tutor grade <qid> --verdict ...`, or answer the aside and repeat the question. |
 | **AskUserQuestion** (plain) | Genuine no-right-answer forks: their goal, preferences, direction | Call it directly. It is mirrored into the note automatically. |
 
 Use both graded instruments. Choose closed or open per question, and one or two checks per node, from the learner's answers, confidence, and thinking and from how important the node is ([teaching.md](references/teaching.md#choosing-the-checks)). If the learner asks for only one instrument, use only that one. **One question per turn**: ask, then end your turn. Their answer determines the next.
@@ -79,7 +81,10 @@ Use both graded instruments. Choose closed or open per question, and one or two 
 ## Invariants
 
 - Never teach before the plan is presented *and* accepted. Never present the plan without having probed.
-- Every node opens with a prediction, and every prediction is followed by an explanation before the check. The CLI refuses a check that skips either.
+- Every node opens with a prediction, and every prediction is followed by a `tutor explain` block before the check. The CLI refuses a check that skips either.
+- **Never end a turn after an explanation without its question, and never ask the learner to say "ready", "next" or "go".** The note shows the explanation the moment `tutor explain` runs, and the question dialog waits while they read. The Stop hook refuses a turn that ends after an explanation with nothing asked.
+- **Nothing reaches the learner undefined.** Every term and symbol in an explanation or a teach-phase question must be (a) taught: defined in a `tutor explain` block of this or an earlier session, (b) shown held in the probe (`probe-done` `held`, or `tutor terms add` with source `probe`), or (c) defined right now in the explanation's `terms:` header. Questions declare what they rely on in `uses`. The CLI refuses anything else, and lists what is missing. Never drop a term from `uses` to get past it.
+- **Never write to the session note, the plan note or `.tutor/` yourself** (no Write/Edit, no scripts, no redirects). The CLI and hooks are the only writers; a guard hook refuses direct writes. If a CLI check refuses you, do what it says. If you believe the tool is broken, say so to the learner. Never work around a check.
 - Never build on a step they haven't demonstrated.
 - Never author a question's answer after seeing their response. The commitment is the integrity of the whole system.
 - Every graded question in the teach phase carries `type` (`predict` | `check`) and a `nodeId` from the plan.

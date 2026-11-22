@@ -36,11 +36,11 @@ Each question, prediction or check, can be **closed** (`tutor quiz`, multiple ch
 
 - Its subject is the node's concept, not yet taught. It need NOT be answerable from what's been covered. Ideally the reasoning chain makes the answer guessable (a well-motivated prediction lands better) but derivability is not required.
 - Its shape is a nudge, not a test: point at the problem with the current state ("this works, but it can't survive X. What do you think has to give?"), and let them try to discover the next step. Reveal nothing more. If the concept's name would give the answer away, hold the name back until the explanation ([clarity.md](clarity.md)).
-- Write the prose the prediction needs (the setup, the problem) before it, in the same turn.
+- The setup the prediction needs (the problem, and every term or symbol its question uses) goes in a `tutor explain --node <id>` block before it, in the same turn. A prediction may hold back the *name* of the concept it is about, never the definitions of what its question mentions: a learner who can't parse the question can't predict.
 
 ### 2. The explanation: always, sized by the prediction
 
-Open by resolving the prediction explicitly: what they predicted, what is actually true, and why. Name the concept in the first sentences ([clarity.md](clarity.md)). The note already showed them the verdict and the short explanation attached to the question. Your explanation is the real one; make it land on their attempt. Then teach the node.
+Write it with `tutor explain --node <id>` (see [questions.md](questions.md#tutor-explain-every-explanation)). Open by resolving the prediction explicitly: what they predicted, what is actually true, and why. Name the concept in the first sentences ([clarity.md](clarity.md)). The note already showed them the verdict and the short explanation attached to the question. Your explanation is the real one; make it land on their attempt. Then teach the node.
 
 Size it from the prediction's verdict, confidence, and thinking:
 
@@ -52,11 +52,15 @@ Size it from the prediction's verdict, confidence, and thinking:
 
 End with the node's conclusion stated, usually as the `> [!IMPORTANT]` callout.
 
+**Keep each block one step.** If an explanation introduces more than a handful of new terms in its `terms:` header, or covers two ideas (a mechanism and a pitfall, a structure and its sizes), it is two steps: split it, with a check between. Never let a table carry a definition alone: a symbol in a table cell is defined in the header (name, role in words, shape) and in prose before the table.
+
 ### 3. The checks: data for you
 
-After the explanation, check that the node landed. Write the explanation, run `tutor flush`, then run the check command (see [questions.md](questions.md#order-prose-first-in-an-earlier-step) for why). A closed check comes in the same turn: **don't end the turn and wait for "ready".** The learner reads in Obsidian, where your explanation sits above the question; the terminal dialog waits while they read. An open check ends your turn, because they answer by typing. In the note, every question is shown open, titled by its role: **Probe**, **Predict**, or **Check**.
+After the explanation, check that the node landed: run the check command right after `tutor explain`, **in the same turn. Never end the turn and wait for "ready"** (the Stop hook refuses it). The learner reads in Obsidian, where your explanation is already shown above the question; the dialog waits while they read. An open check ends your turn, because they answer by typing. In the note, every question is shown open, titled by its role: **Probe**, **Predict**, or **Check**.
 
-Its verdict is your continuation data: continue, repair, or reclarify. **A wrong answer means resume teaching**: diagnose, repair, re-teach (that's a new explanation, sized to the miss), then check again. A passed check either moves on to the next node's prediction, or, when the evidence calls for it, gets one follow-up check.
+Its verdict is your continuation data: continue, repair, or reclarify. **A wrong answer means resume teaching**: diagnose, repair, re-teach (that's a new `tutor explain` block, sized to the miss), then check again.
+
+**Repair a committed belief on the smallest concrete case.** When a wrong answer comes with high confidence, or the same miss repeats, the general form already failed to land. Don't restate it. Drop to the smallest instance that carries the same mechanism (scalars instead of matrices, two layers instead of twelve, three clips instead of a test set), have them compute it in the check, then return to the general form. Example: "gradient through a zero matrix" missed three times in matrix form, and landed at once as $a = x + u\,\sigma(d\,x)$ with numbers. A passed check either moves on to the next node's prediction, or, when the evidence calls for it, gets one follow-up check.
 
 ### Choosing the checks
 
@@ -93,7 +97,11 @@ Two checks must test different things, or the same thing in a different way. Nev
 
 ### The rhythm
 
-**predict → their answer → explanation → check (→ follow-up check) → (repair → check)* → the next node's predict.** One question per turn. Never call a question mid-explanation: finish the thought, then fire.
+**(setup via `tutor explain`) → predict → their answer → `tutor explain` → check (→ follow-up check) → (repair via `tutor explain` → check)* → the next node.** One question per turn. A turn never ends on an explanation alone.
+
+### Asides
+
+When they interrupt (a term they don't know, "resend that", "this is unclear", logistics), that is not an answer. If a recall question is open, the hook flags their message as a *candidate*: decide. For an aside, answer it (teaching content via `tutor explain` without `--node`, which shows in the note and registers any new terms), then end your turn by repeating the open question. A request to rewrite a block gets a new `tutor explain` block, never an edit of the old one. A clarification they had to ask for is evidence the step was too big or used an undefined term: fix the cause in the next blocks.
 
 ## What a check must be
 

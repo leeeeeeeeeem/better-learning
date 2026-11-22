@@ -17,7 +17,7 @@ EOF
 
 - 2–3 options (AskUserQuestion has 4 slots; the fourth is always "I don't know"). `correct` is the exact text of the correct option, or a list for multi-select (`"multiSelect": true`).
 - Write `explanation` BEFORE `correct` in your head: reason it out first, then commit.
-- Probe phase: omit `type` and `nodeId`. Teach phase: both required.
+- Probe phase: omit `type`, `nodeId` and `uses`. Teach phase: all three required. `uses` lists every term and symbol the question, its details and its options rely on, e.g. `"uses": ["LoRA", "$W_{up}$", "gradient"]`. Each must be registered (taught in a `tutor explain` block, or shown held in the probe); the CLI also scans the text for symbols ($W_{up}$, $\alpha$, `code_names`) and refuses any that were never defined.
 - The CLI stores the key, shuffles, and prints an AskUserQuestion payload: **call AskUserQuestion with exactly that input.** Options are labelled A/B/C. Write the question and options in LaTeX as usual: the note shows the LaTeX, and the CLI converts the math to Unicode for the dialog, which doesn't render LaTeX (the terminal, and the Claude app over remote control). A second question asks their confidence. They can attach their thinking as a note on their selection, or type in "Other".
 - A hook grades the answer against the key and returns: verdict, what they picked, the correct answer, confidence, thinking. The note shows them the verdict, the correct answer and your explanation. Never repeat the explanation verbatim; build on it.
 
@@ -31,22 +31,63 @@ tutor recall <<'EOF'
 EOF
 ```
 
-Then end your turn with the question as your message, copied exactly from the CLI output (one short line before it is fine). The learner may be on a phone, where the note isn't visible; the note mirror drops this copy, since the note already shows the question. Their next message is the answer; the hook reminds you of your commitment. Grade strictly against it (**never revise it after seeing their words**) with `tutor grade q7 --verdict correct|partial|incorrect|dontknow --feedback "..."`, then write your reaction. A near-miss is `partial`: name exactly what they got and what they missed. If they genuinely don't know, that's `dontknow`: a gap, not a wrong answer.
+Then end your turn with the question as your message, copied exactly from the CLI output (one short line before it is fine). The learner may be on a phone, where the note isn't visible; the note mirror drops this copy, since the note already shows the question.
+
+Each message they send while it is open is a **candidate**; the hook reminds you of your commitment and lists earlier candidates. Decide what the message is:
+
+- **The answer**, or a corrected or completed version of an earlier one: grade strictly against the commitment (**never revise it after seeing their words**) with `tutor grade q7 --verdict correct|partial|incorrect|dontknow --feedback "..."`. The grade records the latest candidate; when the answer is spread over several messages, pass `--answer "<their full answer>"`. Then write your reaction. A near-miss is `partial`: name exactly what they got and what they missed. If they genuinely don't know, that's `dontknow`: a gap, not a wrong answer.
+- **An aside** (a question, "resend", a complaint, logistics): don't grade. Answer it, then repeat the open question.
+- **"Skip it"**: `--verdict skipped`.
 
 ### Plain AskUserQuestion
 
 For everything with no right answer. They can always pick "Other" and type. If you recommend an option, list it first with "(Recommended)". It's mirrored into the note automatically. You write this payload yourself, so write any math in it in Unicode (`√dₖ`, `α`, `x²`), not LaTeX: the dialog doesn't render LaTeX.
 
-### Order: prose first, in an earlier step
+### `tutor explain`: every explanation
 
-Claude Code writes each step (your text plus the tool call that ends it) to the transcript only after that tool finishes, and the note is built from the transcript. So text that sits in the same step as a question can only reach the note *after* the question. Keep prose that the learner must read before a question in an earlier step:
+```bash
+tutor explain --node lora <<'EOF'
+terms:
+- LoRA :: low-rank adaptation: a trainable update $BA$ added to a frozen weight matrix $W$
+- $A$ :: the down-projection of the update, an $r \times d$ matrix, initialised random
+- $B$ :: the up-projection of the update, a $d \times r$ matrix, initialised to zero
+uses: gradient, frozen, linear layer
+---
+## LoRA
 
-- **Checks (closed or open):** write the explanation, run `tutor flush`, then run `tutor quiz` or `tutor recall`. The flush call ends the step, so the CLI can see the explanation (it refuses a check without one) and the note shows it before the question. For a closed check, then call AskUserQuestion. Don't write prose between `tutor quiz` and AskUserQuestion.
-- **Predictions:** write the setup, then run `tutor quiz` or `tutor recall` (no flush needed; there's no gate on predictions).
-- **Plain AskUserQuestion:** if prose must come before it, write the prose, run `tutor flush`, then ask.
-- **CLI blocks** (recall question, plan map, problem, probe assessment) are placed automatically after the prose that preceded the command. The command prints a `⟦b3⟧` marker for this; ignore it.
+**LoRA** adds a trainable product $BA$ to a frozen $W$ ...
 
-A check is refused when no explanation was written since the last answer, except for a follow-up right after a passed check on the same node. The refusal tells you what to do: write the explanation (or the repair), `tutor flush`, run the command again.
+> [!IMPORTANT]
+> ...
+EOF
+```
+
+- Markdown body after the header, LaTeX written plainly (the quoted heredoc keeps single backslashes; this is not JSON).
+- `terms:` defines everything new the body uses, one line each: `- term :: definition`, with the name, its role in words, and its shape for a matrix or tensor. The note shows these first, in a **New terms** box. A symbol defined only by its shape is not defined.
+- `uses:` lists what the body relies on that the learner already holds. Each must be registered; `uses: none` only if it relies on nothing.
+- The CLI scans the body for symbols and code names and refuses any that are neither registered nor in `terms:`.
+- `--node <id>` for setups, explanations and repairs (it satisfies the check gate). Without `--node`, it is an aside (a clarification), allowed while a question is open.
+- It writes into the note immediately, after anything queued before it. Prose in the chat or in your thinking does not count for the check gate.
+
+A check is refused when no `tutor explain` block for its node exists since the last answer, except for a follow-up right after a passed check on the same node.
+
+### The term registry
+
+`tutor terms list [--all]` shows what is registered (`--all` adds earlier sessions). `probe-done` registers what the probe showed held (`held`). To register terms after the fact (a resumed session that predates the registry, or a held term the probe showed but you didn't list), use:
+
+```bash
+tutor terms add <<'EOF'
+{"source": "probe", "evidence": "q3, q7", "terms": [{"term": "system call"}, {"term": "evdev"}]}
+EOF
+```
+
+`source` is `probe` (shown held: cite the question) or `taught` (cite where it was taught, with a definition per term). Register only what the record shows.
+
+### Order
+
+- **Before a question:** `tutor explain` (setup or explanation), then `tutor quiz`/`tutor recall`, then for a closed question AskUserQuestion, all in one turn. Don't write prose between `tutor quiz` and AskUserQuestion.
+- **Plain AskUserQuestion:** if the learner must read something first, put it in a `tutor explain` block.
+- **CLI blocks** (recall question, grades, plan map, problem, probe assessment) are placed automatically after the prose that preceded the command. The command prints a `⟦b3⟧` marker for this; ignore it.
 
 ### One question per turn
 

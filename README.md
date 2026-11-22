@@ -75,7 +75,11 @@ These go beyond porting. They reflect how I learn best, and you may want to chan
 **Teaching loop**
 
 - Every node of the plan runs predict → explanation → check. The prediction is never skipped, and there is always an explanation between the prediction and the check. Its length depends on the prediction: a compact but complete revision when it was right and confident, a detailed explanation built from the learner's attempt when it was wrong or "I don't know".
-- The CLI enforces the order. It refuses a check on a node that had no prediction, and a check with no explanation since the last answer.
+- The CLI enforces the order. It refuses a check on a node that had no prediction, and a check with no `tutor explain` block for the node since the last answer. Explanations go through `tutor explain`, which writes them into the note at once; chat prose and thinking don't count.
+- No "ready" turns: the Stop hook refuses a turn that ends right after an explanation with no question asked. The question dialog waits while the learner reads the note.
+- Nothing undefined: every term and symbol in an explanation or teach-phase question must be taught in an explanation (this session or an earlier one), shown held in the probe, or defined in the explanation's `terms:` header. Questions declare `uses`; the CLI checks them and scans the text for symbols.
+- Recall replies are candidate answers: a clarifying question or a complaint sent while an open question is waiting is not graded as the answer.
+- A guard hook refuses direct writes to session notes, plan notes and `.tutor/`: only the CLI and hooks write there.
 - In the originals, the learner picks one quizzing mechanic (multiple choice or free recall) for the session. Here the agent picks per question: closed (multiple choice, to test recognition) or open (a short question answered in your own words, to test production). A node gets one or two checks, depending on the answer, the stated confidence, the learner's thinking, and how much of the plan depends on the node. Examples: closed then open for an important node; open then closed when the open answer showed a specific gap.
 
 **Writing**

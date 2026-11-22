@@ -65,13 +65,13 @@ For PDFs, dispatch `pdf-reader` with the template plus a `PDF:` field (absolute 
 
 ## Figures: mermaid inline, or a verified picture
 
-- **Structure, flow, relations, taxonomies, comparisons** → write a ```mermaid block inline in your prose; Obsidian renders it. Node labels with spaces or symbols use quoted bracket form (`B["u = x^3"]`). Keep it small: one idea, fewest elements.
+- **Structure, flow, relations, taxonomies, comparisons** → write a ```mermaid block inside your `tutor explain` block; Obsidian renders it. Node labels with spaces or symbols use quoted bracket form (`B["u = x^3"]`). Keep it small: one idea, fewest elements.
 - **Exact spatial pictures** (coordinate geometry, number lines, vectors, function plots, physical layouts), anything where a wrong coordinate asserts something false → `visual-maker`. Use the template; the `FIGURE:` field lists exactly what the figure must show: coordinates, labels, proportions, orientation. One idea per figure; prune to the fewest elements that carry it.
-- When it returns, embed the filename it gives you in your prose: `![[viz-<slug>-<ts>.png|500]]` (wider for dense figures). Introduce it in a sentence, then let it carry the idea.
+- When it returns, embed the filename it gives you in a `tutor explain` block: `![[viz-<slug>-<ts>.png|500]]` (wider for dense figures). Introduce it in a sentence, then let it carry the idea.
 - Don't visualize when prose or a single equation already carries it. A missing visual is cheaper than a false one. Never hand-author an SVG yourself in the lesson.
 
 ## Interactive demos: build the instrument, don't describe it
 
 If the concept is DYNAMIC (a parameter to sweep, a process to animate, a distribution to sample, a system to simulate), build them the instrument. Ten seconds of dragging a slider teaches more than a paragraph about frequency response. Brief `demo-builder` with the template: `TASK` names the concept, `TITLE` is short, `CONTROLS` lists every parameter/control with its range and what it changes, `FORMULAS` gives every formula and constant, and `DELIVERABLE` describes the interactions and visual style. A vague brief yields a vague demo.
 
-When it lands, put the link it returns in your prose (`[▶ Open the demo: …](file:///…)`: Obsidian opens it in the browser) and **teach WITH it**: reference its controls by name ("drag the damping slider all the way left and watch the overshoot"). An artifact you never point at is decoration. If it misbehaves, re-dispatch with a tighter brief.
+When it lands, put the link it returns in a `tutor explain` block (`[▶ Open the demo: …](file:///…)`: Obsidian opens it in the browser) and **teach WITH it**: reference its controls by name ("drag the damping slider all the way left and watch the overshoot"). An artifact you never point at is decoration. If it misbehaves, re-dispatch with a tighter brief.
