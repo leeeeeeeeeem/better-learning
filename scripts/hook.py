@@ -3,14 +3,18 @@
 PreToolUse/PostToolUse on AskUserQuestion, Stop).
 
 Inert outside a tutor vault, and inert in a vault while no session is bound.
-Never blocks: any failure is logged to .tutor/hook-errors.log and swallowed.
+Never fails the session: any error is logged to .tutor/hook-errors.log and
+swallowed. It blocks on purpose in one case: a turn ending right after an
+explanation, with no question asked (Stop).
 """
 
 from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
+import time
 import traceback
 from pathlib import Path
 
@@ -45,6 +49,42 @@ def remember_transcript(vault: Path, sid: str, path: str | None):
     if st["transcripts"].get(sid) != path:
         st["transcripts"][sid] = path
         save_state(vault, st)
+
+
+def stop_reason(rec: dict, payload: dict) -> str | None:
+    """Block the end of a turn that explained a node and asked nothing: the
+    learner would have to type "ready" to get the question."""
+    if payload.get("stop_hook_active") or rec.get("kind") != "teach":
+        return None
+    explained = rec.get("explained_since_answer") or []
+    if not explained or questions.open_question(rec) is not None:
+        return None
+    node = explained[-1]
+    return (f"[tutor] You wrote a `tutor explain` block for node `{node}` and are ending the turn without a question. "
+            "The note already shows the explanation, and the question dialog waits while the learner reads: ask the "
+            "next question now (the check after an explanation, or the prediction a setup prepares). Never end a turn "
+            "to wait for the learner to say ready. If the learner asked to pause, run `tutor.py session end` instead.")
+
+
+def spawn_delayed_flush(vault: Path, sid: str) -> None:
+    try:
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--delayed-flush", str(vault), sid],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    except OSError:
+        pass
+
+
+def delayed_flush(vault: Path, sid: str, delays=(1.5, 4.0)) -> None:
+    for d in delays:
+        time.sleep(d)
+        with locked(vault):
+            rid = bound_record_id(vault, sid)
+            if not rid:
+                return
+            rec = load_record(vault, rid)
+            mirror.flush(vault, rec, sid)
+            save_record(vault, rec)
 
 
 def handle(payload: dict):
@@ -136,9 +176,23 @@ def handle(payload: dict):
             mirror.flush(vault, rec, sid)
             mirror.place_pending(vault, rec)
             save_record(vault, rec)
+            # The turn's last text can reach the transcript after this hook runs;
+            # without a second flush it shows up in the note only once the learner
+            # types something. Flush again shortly, in the background.
+            spawn_delayed_flush(vault, sid)
+            reason = stop_reason(rec, payload)
+            if reason:
+                print(json.dumps({"decision": "block", "reason": reason}))
 
 
 def main():
+    if len(sys.argv) == 4 and sys.argv[1] == "--delayed-flush":
+        try:
+            delayed_flush(Path(sys.argv[2]), sys.argv[3])
+        except Exception:
+            with open(Path(sys.argv[2]) / STATE_DIR / "hook-errors.log", "a") as fh:
+                fh.write(traceback.format_exc() + "\n")
+        return
     try:
         payload = json.load(sys.stdin)
     except ValueError:
