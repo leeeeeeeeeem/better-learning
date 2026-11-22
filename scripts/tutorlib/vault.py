@@ -44,7 +44,7 @@ class TutorError(Exception):
 def find_vault(start: str | os.PathLike | None = None) -> Path | None:
     env = os.environ.get("TUTOR_VAULT")
     if env:
-        p = Path(env).expanduser()
+        p = Path(env).expanduser().resolve()
         return p if (p / STATE_DIR).is_dir() else None
     cur = Path(start or os.getcwd()).resolve()
     for d in (cur, *cur.parents):
