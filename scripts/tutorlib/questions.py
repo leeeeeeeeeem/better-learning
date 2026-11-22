@@ -95,7 +95,9 @@ def _passed(q: dict) -> bool:
 
 
 def _require_explanation(rec: dict, fields: dict, tool: str, min_chars: int) -> None:
-    """A check needs an explanation since the last answer. Exception: a follow-up
+    """A check needs a `tutor explain` block for its node since the last answer.
+    Chat prose does not count: in past sessions the "explanation" existed only in
+    the model's thinking, and nothing reached the learner. Exception: a follow-up
     check right after a passed check on the same node (two checks on one node).
     After a failed check, the repair is an explanation, so the gate applies."""
     if fields["type"] != "check":
@@ -104,14 +106,17 @@ def _require_explanation(rec: dict, fields: dict, tool: str, min_chars: int) -> 
     last = graded[-1] if graded else None
     if last and last.get("type") == "check" and last.get("nodeId") == fields["nodeId"] and _passed(last):
         return
-    if rec.get("prose_since_answer", 0) >= min_chars:
+    if fields["nodeId"] in (rec.get("explained_since_answer") or []):
         return
     raise TutorError(
-        f"{tool}: no explanation of `{fields['nodeId']}` since the last answer. The explanation is always required. "
-        "Its length depends on the answer.\n"
-        "Next:\n1. Write the explanation (or the repair, after a wrong check).\n"
-        "2. Run `tutor.py flush`. Text in the same step as this command is not visible to it yet.\n"
-        "3. Run this command again."
+        f"{tool}: no `tutor explain` block for node `{fields['nodeId']}` since the last answer. "
+        "The explanation is always required; its length depends on the answer.\n"
+        "Text in the chat or in your thinking does not count, and the learner may not have seen it: "
+        "if you believe you already explained, you most likely wrote it only in your thinking.\n"
+        "Next:\n1. Write the explanation (or the repair, after a wrong check) with "
+        f"`tutor.py explain --node {fields['nodeId']}`.\n"
+        "2. Run this command again, in the same turn. Never end the turn to wait for the learner to say ready.\n"
+        "Never write to the note or to .tutor/ yourself to get past this check."
     )
 
 
@@ -359,8 +364,9 @@ def check_advice(rec: dict, q: dict) -> str:
         if r.get("status") in ("incorrect", "dontknow") or r.get("verdict") in ("incorrect", "dontknow"):
             reasons.append("the prediction was wrong or unknown")
         q["advice_checks"] = 2 if reasons else 1
-        lines = [f"[tutor] Next for node `{node}`: write the explanation (its length depends on this prediction), "
-                 "run `tutor.py flush`, then the check."]
+        lines = [f"[tutor] Next for node `{node}`: write the explanation with `tutor.py explain --node {node}` "
+                 "(its length depends on this prediction), then ask the check in this same turn. "
+                 "Do not end the turn in between, and never ask the learner to say ready."]
         if reasons:
             lines.append("Suggested checks: two, at least one open (`tutor.py recall`). Reasons: " + "; ".join(reasons) + ".")
         else:
@@ -372,8 +378,10 @@ def check_advice(rec: dict, q: dict) -> str:
     r = q.get("result") or {}
     passed = r.get("status") == "correct" or r.get("verdict") in ("correct", "partial")
     if not passed:
-        return (f"[tutor] Next for node `{node}`: repair. Write a new explanation for this miss, run `tutor.py flush`, "
-                "then check again. Use the other instrument (open or closed) if it shows the gap better.")
+        return (f"[tutor] Next for node `{node}`: repair. Write a new explanation for this miss with "
+                f"`tutor.py explain --node {node}`, then check again in this same turn. If the miss is a committed belief "
+                "about a derivation, repair it on the smallest concrete case (scalars, small numbers) the learner computes, "
+                "before the general form. Use the other instrument (open or closed) if it shows the gap better.")
     last_predict = max((i for i, x in enumerate(rec["questions"]) if x.get("nodeId") == node and x.get("type") == "predict"),
                        default=-1)
     checks = [x for x in rec["questions"][last_predict + 1:] if x.get("nodeId") == node and x.get("type") == "check"]
@@ -457,6 +465,7 @@ def grade_recall(rec: dict, qid: str, verdict: str, feedback: str | None) -> dic
     q["result"] = {**(q.get("result") or {}), "verdict": verdict, "feedback": feedback, "graded": now_iso()}
     q["status"] = "graded"
     rec["prose_since_answer"] = 0
+    rec["explained_since_answer"] = []
     return q
 
 

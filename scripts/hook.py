@@ -122,6 +122,7 @@ def handle(payload: dict):
             if block:
                 append_note(note, block)
                 rec["prose_since_answer"] = 0
+                rec["explained_since_answer"] = []
             if ctx and rec.get("plan_note"):
                 from tutorlib import plan
 

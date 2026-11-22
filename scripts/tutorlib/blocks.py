@@ -231,3 +231,14 @@ def conclude_block(p: dict) -> str:
         body += ["", "*" + " · ".join(meta) + "*"]
     out = callout(kind, f"Problem {p['n']}: {label}", body)
     return out + "\n\n" + callout("example", "Model solution", dedash(p["solution"]).split("\n"))
+
+
+def explain_block(body: str, terms: list[dict], anchor: str | None) -> str:
+    """A `tutor explain` block: the definitions first, then the explanation."""
+    parts = []
+    if terms:
+        lines = [f"**{dedash(t['term'])}**: {dedash(t['definition'])}" for t in terms]
+        parts.append(callout("abstract", "New terms", [f"- {l}" for l in lines]))
+    parts.append(dedash(body.strip()))
+    text = "\n\n".join(parts)
+    return f"^{anchor}\n\n{text}" if anchor else text

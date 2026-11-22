@@ -537,6 +537,57 @@ def cmd_grade(args):
         print(advice)
 
 
+def cmd_explain(args):
+    """The only way teaching content reaches the note. It is written at once (no
+    waiting for the transcript), counts for the check gate, and registers the
+    terms it defines."""
+    text = read_text(args, "none")
+    with Session() as s:
+        rec = s.rec
+        if rec["kind"] != "teach":
+            raise TutorError("explain is for teaching sessions only.")
+        terms, uses, body = termslib.parse_explain(text)
+        if len(body) < 40:
+            raise TutorError("explain: the body is empty or too short. Write the explanation in markdown after the header.")
+        node = args.node
+        if node:
+            ids = [n["id"] for n in (rec.get("plan") or {}).get("nodes", [])]
+            if node not in ids:
+                raise TutorError(f"explain: --node must be a plan node id: {', '.join(ids) or '(no plan yet)'}. "
+                                 "For a clarification outside the loop, omit --node.")
+        if rec.get("plan"):  # teaching has started: the define-before-use rule applies
+            if uses is None:
+                raise TutorError(
+                    "explain: the `uses:` header line is missing. Start the input with\n"
+                    "terms:\n- new term :: one-line definition\nuses: held term, earlier term\n---\n<markdown>\n"
+                    "`uses` lists what the learner must already hold (taught earlier, or shown in the probe); "
+                    "`terms` defines everything new. Write `uses: none` only if it relies on nothing."
+                )
+            termslib.check_explanation(rec, all_records(s.vault), terms, uses, body)
+        termslib.register(rec, terms, "taught", node=node, evidence="explain")
+        # Blocks queued earlier (grades, questions) go first, then this block, now.
+        mirror.place_pending(s.vault, rec)
+        append_note(note_abspath(s.vault, rec), blocks.explain_block(body, terms, mirror._next_anchor(rec)))
+        rec.setdefault("explanations", []).append(
+            {"node": node, "at": now_iso(), "chars": len(body), "terms": [t["term"] for t in terms], "uses": uses or []})
+        if node:
+            ex = rec.setdefault("explained_since_answer", [])
+            if node not in ex:
+                ex.append(node)
+        open_q = questions.open_question(rec)
+    print(f"Explanation written to the note ({len(body)} characters, {len(terms)} new terms).")
+    if open_q is not None:
+        print(f"Question {open_q['qid']} is still open. End your turn by repeating it (copied exactly) so the learner can "
+              "answer it now.")
+    elif node:
+        print(f"Next: in this same turn, ask the next question on `{node}` (the check after an explanation, or the "
+              "prediction this setup prepares). Do not end the turn first, and never ask the learner to say ready: the "
+              "note already shows the explanation, and the question waits while they read.\n"
+              "In the chat, write at most one line pointing to the new section; do not repeat the explanation.")
+    else:
+        print("Next: answer the learner in one line in the chat, then continue where the session was.")
+
+
 # ─── practice ────────────────────────────────────────────────────────────────
 
 MODES = ("recall", "discrimination", "composition")
@@ -782,6 +833,10 @@ def main(argv=None):
         p.add_argument("--json")
         p.add_argument("--file")
         p.set_defaults(fn=fn)
+    p = sub.add_parser("explain", help="write an explanation (or a setup, or an aside) into the note now")
+    p.add_argument("--node", help="plan node id; omit for an aside (a clarification outside the loop)")
+    p.add_argument("--file")
+    p.set_defaults(fn=cmd_explain)
     p = sub.add_parser("plan")
     p.add_argument("--mermaid")
     p.add_argument("--file")
