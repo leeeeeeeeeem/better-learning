@@ -47,6 +47,7 @@ For everything with no right answer. They can always pick "Other" and type. If y
 
 ```bash
 tutor explain --node lora <<'EOF'
+reply: Correct at 75%. Both start from the same frozen $W$; what differs is which factor starts at zero.
 terms:
 - LoRA :: low-rank adaptation: a trainable update $BA$ added to a frozen weight matrix $W$
 - $A$ :: the down-projection of the update, an $r \times d$ matrix, initialised random
@@ -63,11 +64,13 @@ EOF
 ```
 
 - Markdown body after the header, LaTeX written plainly (the quoted heredoc keeps single backslashes; this is not JSON).
+- `reply:` is your reaction to their last answer (the verdict in your words, what they got, what is true and why). It is required on the first explanation after any graded answer, and it is shown first, directly under the verdict, before the heading and the **New terms** box. Never put the reaction at the top of the body (it would land under the heading and the terms) or in the chat.
 - `terms:` defines everything new the body uses, one line each: `- term :: definition`, with the name, its role in words, and its shape for a matrix or tensor. The note shows these first, in a **New terms** box. A symbol defined only by its shape is not defined.
 - `uses:` lists what the body relies on that the learner already holds. Each must be registered; `uses: none` only if it relies on nothing.
 - The CLI scans the body for symbols and code names and refuses any that are neither registered nor in `terms:`.
 - `--node <id>` for setups, explanations and repairs (it satisfies the check gate). Without `--node`, it is an aside (a clarification), allowed while a question is open.
-- It writes into the note immediately, after anything queued before it. Prose in the chat or in your thinking does not count for the check gate.
+- It is placed in the note right after whatever came before the command (prose, grades), at the latest when you ask the next question. Prose in the chat or in your thinking does not count for the check gate.
+- In the teach phase, write no chat prose between their answer and your next question beyond a one-line pointer: everything they should read in order goes through the CLI.
 
 A check is refused when no `tutor explain` block for its node exists since the last answer, except for a follow-up right after a passed check on the same node.
 

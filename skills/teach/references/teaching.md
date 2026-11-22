@@ -40,7 +40,7 @@ Each question, prediction or check, can be **closed** (`tutor quiz`, multiple ch
 
 ### 2. The explanation: always, sized by the prediction
 
-Write it with `tutor explain --node <id>` (see [questions.md](questions.md#tutor-explain-every-explanation)). Open by resolving the prediction explicitly: what they predicted, what is actually true, and why. Name the concept in the first sentences ([clarity.md](clarity.md)). The note already showed them the verdict and the short explanation attached to the question. Your explanation is the real one; make it land on their attempt. Then teach the node.
+Write it with `tutor explain --node <id>` (see [questions.md](questions.md#tutor-explain-every-explanation)). Open by resolving the prediction explicitly, in the block's `reply:` line: what they predicted, what is actually true, and why. The note shows it right under the verdict. Name the concept in the first sentences ([clarity.md](clarity.md)). The note already showed them the verdict and the short explanation attached to the question. Your explanation is the real one; make it land on their attempt. Then teach the node.
 
 Size it from the prediction's verdict, confidence, and thinking:
 
