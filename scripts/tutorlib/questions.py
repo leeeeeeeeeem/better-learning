@@ -19,6 +19,7 @@ import random
 import re
 
 from . import blocks
+from . import terms as termslib
 from .unimath import to_unicode
 from . import plan as planlib
 from .vault import TutorError, now_iso
@@ -114,7 +115,14 @@ def _require_explanation(rec: dict, fields: dict, tool: str, min_chars: int) -> 
     )
 
 
-def commit_quiz(rec: dict, spec: dict, min_chars: int = 400) -> tuple[dict, dict]:
+def _check_terms(rec: dict, spec: dict, fields: dict, tool: str, prior) -> list[str] | None:
+    """Teach-phase questions declare `uses`; every term must be known."""
+    if fields["phase"] == "probe" or rec.get("kind") != "teach" or prior is None:
+        return None
+    return termslib.check_question(rec, prior, spec, tool)
+
+
+def commit_quiz(rec: dict, spec: dict, min_chars: int = 400, prior: list | None = None) -> tuple[dict, dict]:
     if (q := open_question(rec)) is not None:
         raise TutorError(f"Question {q['qid']} is open. Ask one question per turn. Wait for the answer of the learner.")
     for field in ("question", "options", "correct", "explanation"):
@@ -136,6 +144,7 @@ def commit_quiz(rec: dict, spec: dict, min_chars: int = 400) -> tuple[dict, dict
     fields = _phase_fields(rec, spec, "quiz")
     _require_prediction(rec, fields, "quiz")
     _require_explanation(rec, fields, "quiz", min_chars)
+    uses = _check_terms(rec, spec, fields, "quiz", prior)
 
     order = options[:]
     if spec.get("shuffle", True):
@@ -151,6 +160,7 @@ def commit_quiz(rec: dict, spec: dict, min_chars: int = 400) -> tuple[dict, dict
         "correct": [o["letter"] for o in opts if o["text"] in correct],
         "multiSelect": multi,
         "explanation": spec["explanation"].strip(),
+        "uses": uses,
         "status": "committed",
         "created": now_iso(),
     }
@@ -386,7 +396,7 @@ def check_advice(rec: dict, q: dict) -> str:
 # ─── free recall ─────────────────────────────────────────────────────────────
 
 
-def commit_recall(rec: dict, spec: dict, min_chars: int = 400) -> dict:
+def commit_recall(rec: dict, spec: dict, min_chars: int = 400, prior: list | None = None) -> dict:
     if (q := open_question(rec)) is not None:
         raise TutorError(f"Question {q['qid']} is open. Ask one question per turn. Wait for the answer of the learner.")
     for field in ("question", "answer"):
@@ -395,6 +405,7 @@ def commit_recall(rec: dict, spec: dict, min_chars: int = 400) -> dict:
     fields = _phase_fields(rec, spec, "recall")
     _require_prediction(rec, fields, "recall")
     _require_explanation(rec, fields, "recall", min_chars)
+    uses = _check_terms(rec, spec, fields, "recall", prior)
     q = {
         "qid": _next_qid(rec),
         "tool": "recall",
@@ -402,6 +413,7 @@ def commit_recall(rec: dict, spec: dict, min_chars: int = 400) -> dict:
         "question": spec["question"].strip(),
         "details": (spec.get("details") or "").strip() or None,
         "answer_key": spec["answer"].strip(),
+        "uses": uses,
         "status": "asked",
         "created": now_iso(),
     }

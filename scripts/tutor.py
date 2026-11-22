@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tutorlib import blocks, graph, mirror, plan, questions  # noqa: E402
+from tutorlib import terms as termslib  # noqa: E402
 from tutorlib.vault import (  # noqa: E402
     TutorError,
     load_state,
@@ -313,6 +314,14 @@ def cmd_session_resume(args):
     elif q is not None:
         print(f"\nOpen question: {q['qid']} (recall) has no answer yet. Repeat it as your message, copied exactly; "
               "the next message from the learner is the answer:\n" + q["question"])
+    if rec["kind"] == "teach" and rec.get("plan") and not rec.get("terms"):
+        print("\nTerm registry: empty. This session predates the define-before-use check, so every teach-phase "
+              "question and explanation will be refused until the registry holds what the learner already has.\n"
+              "Next, before any question: read the note, then register\n"
+              "  - what the probe showed held: `tutor.py terms add` with source `probe` and the question ids as evidence;\n"
+              "  - what was already taught in this session's explanations: source `taught`, with a one-line definition each "
+              "and the section as evidence.\n"
+              "Register only what the note shows. Anything else must be defined in a `tutor explain` block before use.")
     recent = rec["questions"][-6:]
     if recent:
         print("\nRecent questions:")
@@ -402,7 +411,18 @@ def cmd_probe_done(args):
             isinstance(x, dict) and x.get("strand") and x.get("assessment") for x in strands
         ):
             raise TutorError('probe-done needs {"goal": ..., "strands": [{"strand": ..., "assessment": ...}, ...]}.')
-        rec["probe"] = {"goal": spec.get("goal"), "summary": spec.get("summary"), "strands": strands, "at": now_iso()}
+        held = spec.get("held")
+        if held is None:
+            raise TutorError(
+                'probe-done: `held` is missing. List the terms and symbols the probe showed the learner holds '
+                '(each as {"term": ..., "evidence": "q3"} or a plain string). Only these, plus terms taught in '
+                "explanations, may be used without a definition. An empty list is allowed."
+            )
+        entries = [{"term": h} if isinstance(h, str) else h for h in held]
+        for e in entries:
+            termslib.register(rec, [e], "probe", evidence=e.get("evidence"))
+        rec["probe"] = {"goal": spec.get("goal"), "summary": spec.get("summary"), "strands": strands,
+                        "held": [e["term"] for e in entries], "at": now_iso()}
         rec["phase"] = "plan"
         s.append(blocks.probe_block(rec["probe"]))
     print("Probe concluded. The note shows the assessment.")
@@ -437,6 +457,37 @@ def cmd_plan(args):
               f"3. Before you teach, read {ref('teach', 'teaching.md')}.")
 
 
+def cmd_terms_add(args):
+    spec = read_spec(args)
+    with Session() as s:
+        source = spec.get("source")
+        entries = spec.get("terms")
+        if not isinstance(entries, list) or not entries:
+            raise TutorError('terms add needs {"source": "taught"|"probe", "evidence": "...", "terms": [{"term": ..., '
+                             '"definition": ...}, ...]}. evidence: the question id (probe) or where it was taught.')
+        if not spec.get("evidence"):
+            raise TutorError("terms add: `evidence` is missing. Name the probe question (q3) or the explanation/session "
+                             "where each term was taught. Only register what the record shows.")
+        entries = [{"term": e} if isinstance(e, str) else e for e in entries]
+        keys = termslib.register(s.rec, entries, source, evidence=spec["evidence"])
+    print(f"Registered {len(keys)} terms as {source}.")
+
+
+def cmd_terms_list(args):
+    vault = require_vault()
+    rec = require_bound(vault)
+    rows = list(rec.get("terms") or [])
+    if args.all:
+        idx = termslib.known_index(rec, all_records(vault))
+        rows = list(idx.values())
+    if not rows:
+        print("No terms registered.")
+    for t in rows:
+        where = t.get("session") or t.get("node") or t.get("evidence") or ""
+        print(f"- {t['term']} [{t['source']}{', ' + where if where else ''}]"
+              + (f": {t['definition']}" if t.get("definition") else ""))
+
+
 def _refresh_plan(vault: Path, rec: dict):
     if rec.get("plan") and rec.get("plan_note"):
         plan.write_note(vault / rec["plan_note"], rec, Path(rec["note"]).stem)
@@ -452,7 +503,7 @@ def _min_chars(vault: Path) -> int:
 def cmd_quiz(args):
     spec = read_spec(args)
     with Session() as s:
-        q, payload = questions.commit_quiz(s.rec, spec, _min_chars(s.vault))
+        q, payload = questions.commit_quiz(s.rec, spec, _min_chars(s.vault), all_records(s.vault))
         _refresh_plan(s.vault, s.rec)
     print(f"Committed {q['qid']}. The answer key is stored and the options are shuffled.\n"
           "Next:\n1. Call AskUserQuestion with the input below. Do not change it.\n"
@@ -463,7 +514,7 @@ def cmd_quiz(args):
 def cmd_recall(args):
     spec = read_spec(args)
     with Session() as s:
-        q = questions.commit_recall(s.rec, spec, _min_chars(s.vault))
+        q = questions.commit_recall(s.rec, spec, _min_chars(s.vault), all_records(s.vault))
         shown = q["question"] + ("\n\n" + q["details"] if q.get("details") else "")
         s.append(blocks.quiz_question_block(q), echo=shown)
         _refresh_plan(s.vault, s.rec)
@@ -741,6 +792,15 @@ def main(argv=None):
     p.add_argument("--feedback")
     p.set_defaults(fn=cmd_grade)
     sub.add_parser("practice-status").set_defaults(fn=cmd_practice_status)
+
+    pt = sub.add_parser("terms").add_subparsers(dest="tcmd", required=True)
+    p = pt.add_parser("add", help="register terms already taught or shown held in the probe")
+    p.add_argument("--json")
+    p.add_argument("--file")
+    p.set_defaults(fn=cmd_terms_add)
+    p = pt.add_parser("list")
+    p.add_argument("--all", action="store_true", help="include earlier sessions' terms")
+    p.set_defaults(fn=cmd_terms_list)
 
     pg = sub.add_parser("graph").add_subparsers(dest="gcmd", required=True)
     pg.add_parser("sessions")
