@@ -6,7 +6,7 @@ This is the highest-leverage step; don't rush it. With their level and their goa
 
 - **Scope the field.** Its core concepts, the real first principles, standard framings, common gotchas, and where your picture of the field is less than clear, dispatch the `researcher` agent to check it: planning is the natural moment for verification.
 - What are the unconditional truths this rests on? Is there a clean atomic unit ("ALL X is done through {____}")?
-- Which of those do they already hold (from the probe)? Build from there, not below it, not above it. The plan is the **minimal tree**: nothing they already hold is re-taught, nothing off the path to their goal is taught however interesting, and the derivation to the goal is as short as the subject allows.
+- What does the probe show they already reason from, and how do they connect the ideas? Build from the ground the evidence supports, not below it, not above it. An untested boundary is neither a gap nor proof of understanding: carry an uncertain premise into the plan as something to check during teaching, before the step that builds on it. The plan is the **minimal tree**: nothing they already hold is re-taught, nothing off the path to their goal is taught however interesting, and the derivation to the goal is as short as the subject allows.
 - What's the motivated discovery path from those truths to their goal? Where does each step come from? Why would anyone reach for it?
 - Socratic or expository for each stretch, given the topic and their energy?
 
