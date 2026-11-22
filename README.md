@@ -45,7 +45,7 @@ Requirements: Claude Code logged in with a Claude subscription (or any other aut
 | `/better-learning:log <note>` / `/better-learning:log off` | Mirror any conversation into an existing note (the md-log port) |
 | `/better-learning:history` | Read your old LearnHarness app data (sessions, graph) |
 
-Answering questions: graded questions pop up as AskUserQuestion with options **A/B/C** + *I don't know* (read the rendered options in Obsidian, pick the letter in the terminal), then your confidence. Add your thinking as a note on your selection: it's the most valuable thing you can give the tutor. Free-recall questions and practice problems are answered by just typing in the chat.
+Answering questions: graded questions pop up as AskUserQuestion with options **A/B/C** + *I don't know* (read the rendered options in Obsidian, pick the letter in the terminal), then your confidence. Add your thinking as a note on your selection: it's the most valuable thing you can give the tutor. Free-recall questions and practice problems are answered by just typing in the chat. While an open question is waiting you can still ask something else ("what does frozen mean?", "resend that block"): the tutor answers the aside and asks the question again, without grading your aside as the answer. If you send a corrected answer, the latest one is graded.
 
 ## How the pieces map
 
@@ -53,9 +53,10 @@ Answering questions: graded questions pop up as AskUserQuestion with options **A
 |---|---|
 | `teach` skill (pi) + LearnHarness system prompts (base, prober, teacher, shared) | `skills/teach/`: SKILL.md + phase references loaded as each phase starts |
 | `quiz` extension / harness `quiz`+`probe` tools | `tutor.py quiz` commits the key and shuffles → AskUserQuestion → a PostToolUse hook grades deterministically against the commitment and returns verdict, confidence, thinking |
-| harness `explain` / `recall` (free recall) | `tutor.py recall` (commit) → your chat reply (hook) → `tutor.py grade` |
+| harness `explain` / `recall` (free recall) | `tutor.py recall` (commit) → your chat replies, each a candidate answer (hook) → `tutor.py grade` on the one that is the answer |
+| Teacher explanations (prose in the originals) | `tutor.py explain`: markdown with a `reply:` / `terms:` / `uses:` header, written into the note in reading order; term definitions kept in a registry across sessions |
 | `ask-user-question` extension | Claude Code's AskUserQuestion, mirrored into the note |
-| `md-log` extension | Hooks (UserPromptSubmit / PreToolUse / PostToolUse / Stop) that flush the transcript into the note, in order, with `^t12` block anchors |
+| `md-log` extension | Hooks (UserPromptSubmit / PreToolUse / PostToolUse / Stop) that flush the transcript into the note, in order, with `^t12` block anchors. The Stop hook flushes again shortly after the turn ends, so the last text of a turn shows up without you typing anything |
 | `plan_init` + derived plan statuses | `tutor.py plan` → `Learning/Plans/<session> plan.md` (mermaid, current/visited highlighting), embedded in the session note |
 | `probe_done` | `tutor.py probe-done` |
 | Practice `problem` / `conclude` + doctrine | `skills/practice/` + `tutor.py problem` / `conclude` / `practice-status`; results written onto proposition notes |
@@ -75,11 +76,13 @@ These go beyond porting. They reflect how I learn best, and you may want to chan
 **Teaching loop**
 
 - Every node of the plan runs predict → explanation → check. The prediction is never skipped, and there is always an explanation between the prediction and the check. Its length depends on the prediction: a compact but complete revision when it was right and confident, a detailed explanation built from the learner's attempt when it was wrong or "I don't know".
-- The CLI enforces the order. It refuses a check on a node that had no prediction, and a check with no `tutor explain` block for the node since the last answer. Explanations go through `tutor explain`, which writes them into the note at once; chat prose and thinking don't count.
-- No "ready" turns: the Stop hook refuses a turn that ends right after an explanation with no question asked. The question dialog waits while the learner reads the note.
-- Nothing undefined: every term and symbol in an explanation or teach-phase question must be taught in an explanation (this session or an earlier one), shown held in the probe, or defined in the explanation's `terms:` header. Questions declare `uses`; the CLI checks them and scans the text for symbols.
-- Recall replies are candidate answers: a clarifying question or a complaint sent while an open question is waiting is not graded as the answer.
-- A guard hook refuses direct writes to session notes, plan notes and `.tutor/`: only the CLI and hooks write there.
+- Explanations are written with `tutor explain`, not as chat prose. The CLI refuses a check on a node that had no prediction, and a check with no `tutor explain` block for the node since the last answer. Chat prose and the model's thinking don't count (in early sessions, whole explanations existed only in the model's thinking and never reached the learner).
+- No "ready" turns: the explanation and its check come in the same turn. The Stop hook refuses a turn that ends right after an explanation with no question asked; the question dialog waits while you read the note.
+- Nothing undefined: every term and symbol in an explanation or a teach-phase question must be (a) taught in an explanation, in this session or an earlier one, (b) shown held in the probe (`probe-done` takes a `held` list), or (c) defined in the explanation's `terms:` header. Questions declare the terms they rely on in `uses`; the CLI checks them against a term registry and also scans the text for symbols ($W_{up}$, $\alpha$, `code_names`), and refuses anything undefined. `tutor.py terms list` shows the registry.
+- One step per explanation block: a block that needs many new terms or covers two ideas is split, with a check between. A symbol is never defined only in a table cell or only by its shape.
+- A wrong answer given with high confidence, or a miss that repeats, is repaired on the smallest concrete case (scalars, small numbers) that you compute, before the general form.
+- Asides are not answers: a clarifying question, a "resend that" or a complaint sent while an open question is waiting is answered, and the question stays open.
+- The tutor can't work around its own checks: a guard hook refuses direct writes (Write/Edit, scripts, redirects) to session notes, plan notes and `.tutor/`. Only the CLI and the hooks write there.
 - In the originals, the learner picks one quizzing mechanic (multiple choice or free recall) for the session. Here the agent picks per question: closed (multiple choice, to test recognition) or open (a short question answered in your own words, to test production). A node gets one or two checks, depending on the answer, the stated confidence, the learner's thinking, and how much of the plan depends on the node. Examples: closed then open for an important node; open then closed when the open answer showed a specific gap.
 
 **Writing**
@@ -92,7 +95,8 @@ These go beyond porting. They reflect how I learn best, and you may want to chan
 
 - Questions are titled by their role (**Probe**, **Predict**, **Check**) and always shown expanded.
 - Claude's text appears without a label; your messages appear inside a **YOU** box.
-- Prose written right before a question always appears above it in the note (Claude Code writes each step to the transcript only after its tool finishes; the mirror accounts for this).
+- After each answer the note reads in order: the verdict, the tutor's reaction to your answer (the explanation's `reply:` line), the next section's heading, a **New terms** box with every term the section introduces, then the explanation and the next question.
+- Every block the CLI writes (explanations, questions, grades, the plan) lands right after whatever came before it. Claude Code writes each step to the transcript only after its tool finishes, so the CLI queues its blocks and the mirror places them behind the prose that preceded them.
 
 **Phone use (Claude app over remote control)**
 
@@ -101,9 +105,11 @@ These go beyond porting. They reflect how I learn best, and you may want to chan
 
 ## Files
 
-- `scripts/tutor.py`: the CLI; `scripts/hook.py`: hook entry point; `scripts/tutorlib/`: vault/state, mirror, questions, plan, graph; `scripts/run_demo.py`: headless demo tester.
-- State lives in the vault's `.tutor/` (Obsidian ignores dot-folders): `state.json` (which conversation is bound to which session), `sessions/*.json` (questions with answer keys, plan, probe, problems), `graph.json`.
-- Set `TUTOR_DEBUG=1` to log raw hook payloads to `.tutor/hook-debug.jsonl`; hook failures go to `.tutor/hook-errors.log` and never interrupt the session.
+- `scripts/tutor.py`: the CLI; `scripts/hook.py`: hook entry point (mirror, recall candidates, Stop check, write guard); `scripts/tutorlib/`: vault/state, mirror, questions, terms (registry and define-before-use checks), plan, graph; `scripts/run_demo.py`: headless demo tester.
+- `tests/test_teach_flow.py`: end-to-end tests of the teach loop, the term checks, recall asides, note ordering and the write guard. Run `python3 -m unittest discover -s tests` from the plugin root.
+- State lives in the vault's `.tutor/` (Obsidian ignores dot-folders): `state.json` (which conversation is bound to which session), `sessions/*.json` (questions with answer keys and candidate answers, plan, probe, term registry, explanations, problems), `graph.json`.
+- Set `TUTOR_DEBUG=1` to log raw hook payloads to `.tutor/hook-debug.jsonl`. Hook failures go to `.tutor/hook-errors.log` and never interrupt the session; the hooks block on purpose only in two cases: a turn that ends after an explanation with no question (Stop), and a direct write to the note or `.tutor/` (PreToolUse).
+- Sessions started before 0.3.0 have an empty term registry. On resume, the tutor registers what the note shows was probed or taught (`tutor.py terms add`) before it asks anything.
 
 ## Credits
 
