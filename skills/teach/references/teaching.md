@@ -103,6 +103,8 @@ Two checks must test different things, or the same thing in a different way. Nev
 
 When they interrupt (a term they don't know, "resend that", "this is unclear", logistics), that is not an answer. If a recall question is open, the hook flags their message as a *candidate*: decide. For an aside, answer it (teaching content via `tutor explain` without `--node`, which shows in the note and registers any new terms), then end your turn by repeating the open question. A request to rewrite a block gets a new `tutor explain` block, never an edit of the old one. A clarification they had to ask for is evidence the step was too big or used an undefined term: fix the cause in the next blocks.
 
+**While a question is open, an aside never answers it.** Don't solve it, eliminate or hint at options, confirm or reject a proposed answer, give the final step, or work a near-identical example to completion. You may clarify the question's wording, define a term, explain a concept the question relies on, or give a small nudge that leaves the assessed reasoning to them. Keep the answer to the aside short: the smallest clarification that unblocks them. And an explanation they asked for is not evidence they understood it: only their answer to the question is.
+
 ## What a check must be
 
 Every check exists to answer one question: did the idea actually **take**, not whether they can read it back.
