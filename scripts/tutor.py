@@ -111,6 +111,10 @@ class Session:
         self.sid = current_sid()
         self.tokens: list[str] = []
         mirror.flush(self.vault, self.rec, self.sid)
+        # Persist the mirror's progress now: if the command is then refused, the
+        # record is not saved at exit, and the next flush would write the same
+        # transcript stretch into the note again.
+        save_record(self.vault, self.rec)
         return self
 
     def append(self, block: str, echo: str | None = None):

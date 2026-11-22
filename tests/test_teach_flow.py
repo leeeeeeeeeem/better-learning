@@ -199,6 +199,22 @@ class TeachFlowTests(unittest.TestCase):
         self.assertIn("LoRA [prior", listing)
 
 
+class MirrorTests(unittest.TestCase):
+    def test_refused_command_does_not_duplicate_note_blocks(self):
+        v = Vault()
+        v.to_teach_phase()
+        transcript = v.dir / "transcript.jsonl"
+        transcript.write_text("")
+        v.hook({"hook_event_name": "Stop", "transcript_path": str(transcript)})
+        entry = {"type": "assistant", "message": {"id": "m1", "role": "assistant",
+                                                  "content": [{"type": "text", "text": "A sentence the learner reads once."}]}}
+        with open(transcript, "a") as fh:
+            fh.write(json.dumps(entry) + "\n")
+        for _ in range(3):  # refused: no `uses`
+            v.cli("quiz", stdin={k: x for k, x in PREDICT.items() if k != "uses"}, ok=False)
+        self.assertEqual(v.note().count("A sentence the learner reads once."), 1)
+
+
 class GuardTests(unittest.TestCase):
     def setUp(self):
         self.v = Vault()
