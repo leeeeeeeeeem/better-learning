@@ -500,6 +500,7 @@ def grade_recall(rec: dict, qid: str, verdict: str, feedback: str | None, answer
     q["status"] = "graded"
     rec["prose_since_answer"] = 0
     rec["explained_since_answer"] = []
+    rec["reply_due"] = q["qid"]
     return q
 
 

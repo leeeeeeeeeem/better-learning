@@ -555,7 +555,7 @@ def cmd_explain(args):
         rec = s.rec
         if rec["kind"] != "teach":
             raise TutorError("explain is for teaching sessions only.")
-        terms, uses, body = termslib.parse_explain(text)
+        terms, uses, body, reply = termslib.parse_explain(text)
         if len(body) < 40:
             raise TutorError("explain: the body is empty or too short. Write the explanation in markdown after the header.")
         node = args.node
@@ -572,11 +572,21 @@ def cmd_explain(args):
                     "`uses` lists what the learner must already hold (taught earlier, or shown in the probe); "
                     "`terms` defines everything new. Write `uses: none` only if it relies on nothing."
                 )
-            termslib.check_explanation(rec, all_records(s.vault), terms, uses, body)
+            termslib.check_explanation(rec, all_records(s.vault), terms, uses, body + "\n" + (reply or ""))
+        due = rec.get("reply_due")
+        if due and node and not reply:
+            raise TutorError(
+                f"explain: the learner's answer to {due} has no reaction yet. Start the header with\n"
+                "reply: <your reaction: what they got, what is true, why>\n"
+                "It is shown first, right under the verdict, before the heading and the new terms. Do not put the "
+                "reaction in the body or in the chat."
+            )
         termslib.register(rec, terms, "taught", node=node, evidence="explain")
-        # Blocks queued earlier (grades, questions) go first, then this block, now.
-        mirror.place_pending(s.vault, rec)
-        append_note(note_abspath(s.vault, rec), blocks.explain_block(body, terms, mirror._next_anchor(rec)))
+        # Queued like every CLI block: it lands right after whatever was written
+        # before this command (prose, grades), never above it.
+        s.append(blocks.explain_block(body, terms, mirror._next_anchor(rec), reply))
+        if reply:
+            rec["reply_due"] = None
         rec.setdefault("explanations", []).append(
             {"node": node, "at": now_iso(), "chars": len(body), "terms": [t["term"] for t in terms], "uses": uses or []})
         if node:
@@ -584,7 +594,8 @@ def cmd_explain(args):
             if node not in ex:
                 ex.append(node)
         open_q = questions.open_question(rec)
-    print(f"Explanation written to the note ({len(body)} characters, {len(terms)} new terms).")
+    print(f"Explanation queued for the note ({len(body)} characters, {len(terms)} new terms). It appears right "
+          "after what came before it, at the latest when you ask the next question.")
     if open_q is not None:
         print(f"Question {open_q['qid']} is still open. End your turn by repeating it (copied exactly) so the learner can "
               "answer it now.")

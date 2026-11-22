@@ -236,12 +236,22 @@ def conclude_block(p: dict) -> str:
     return out + "\n\n" + callout("example", "Model solution", dedash(p["solution"]).split("\n"))
 
 
-def explain_block(body: str, terms: list[dict], anchor: str | None) -> str:
-    """A `tutor explain` block: the definitions first, then the explanation."""
+def explain_block(body: str, terms: list[dict], anchor: str | None, reply: str | None = None) -> str:
+    """A `tutor explain` block, in reading order: the reaction to their last
+    answer (right under its verdict), the section heading, the definitions,
+    then the explanation."""
     parts = []
+    if reply:
+        parts.append(dedash(reply.strip()))
+    body = body.strip()
+    first, _, rest = body.partition("\n")
+    if first.lstrip().startswith("#"):
+        parts.append(dedash(first.strip()))
+        body = rest.strip()
     if terms:
         lines = [f"**{dedash(t['term'])}**: {dedash(t['definition'])}" for t in terms]
         parts.append(callout("abstract", "New terms", [f"- {l}" for l in lines]))
-    parts.append(dedash(body.strip()))
+    if body:
+        parts.append(dedash(body))
     text = "\n\n".join(parts)
     return f"^{anchor}\n\n{text}" if anchor else text

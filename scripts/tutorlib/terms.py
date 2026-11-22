@@ -222,9 +222,10 @@ def check_explanation(rec: dict, prior: list[dict], terms: list[dict], uses: lis
 # ─── `tutor explain` input ───────────────────────────────────────────────────
 
 
-def parse_explain(text: str) -> tuple[list[dict], list[str] | None, str]:
+def parse_explain(text: str) -> tuple[list[dict], list[str] | None, str, str | None]:
     """Markdown on stdin, with an optional header ended by a line `---`:
 
+        reply: Correct at 75%. The HID layer sets every parent ...
         terms:
         - input core :: the kernel subsystem every input driver registers with
         - $W_{up}$ :: the adapter's up-projection, a 768 x 64 matrix
@@ -236,27 +237,35 @@ def parse_explain(text: str) -> tuple[list[dict], list[str] | None, str]:
     i = 0
     while i < len(lines) and not lines[i].strip():
         i += 1
-    if i >= len(lines) or not re.match(r"^(terms|uses)\s*:", lines[i].strip(), re.I):
-        return [], None, text.strip()
+    if i >= len(lines) or not re.match(r"^(terms|uses|reply)\s*:", lines[i].strip(), re.I):
+        return [], None, text.strip(), None
     try:
         end = next(j for j in range(i, len(lines)) if lines[j].strip() == "---")
     except StopIteration:
-        raise TutorError("explain: the header (terms:/uses:) must end with a line containing only `---`.")
+        raise TutorError("explain: the header (reply:/terms:/uses:) must end with a line containing only `---`.")
     terms: list[dict] = []
     uses: list[str] | None = None
+    reply: list[str] = []
     section = None
     for raw in lines[i:end]:
         line = raw.strip()
         if not line:
             continue
-        m = re.match(r"^(terms|uses)\s*:\s*(.*)$", line, re.I)
+        m = re.match(r"^(terms|uses|reply)\s*:\s*(.*)$", line, re.I)
         if m:
             section = m.group(1).lower()
             rest = m.group(2).strip()
+            if section == "reply":
+                if rest:
+                    reply.append(rest)
+                continue
             if section == "uses":
                 uses = [] if uses is None else uses
                 if rest and rest.lower() != "none":
                     uses += [u.strip() for u in rest.split(",") if u.strip()]
+            continue
+        if section == "reply":
+            reply.append(line)
             continue
         if not line.startswith("-"):
             raise TutorError(f"explain: header line not understood: {line!r}. Use `- term :: definition` "
@@ -273,4 +282,4 @@ def parse_explain(text: str) -> tuple[list[dict], list[str] | None, str]:
         elif section == "uses":
             uses = (uses or []) + [item]
     body = "\n".join(lines[end + 1:]).strip()
-    return terms, uses, body
+    return terms, uses, body, (" ".join(reply).strip() or None)

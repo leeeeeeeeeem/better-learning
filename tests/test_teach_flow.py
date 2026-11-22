@@ -112,7 +112,10 @@ class TermTests(unittest.TestCase):
         self.assertTrue(terms.is_known(idx, "Adapters"))
 
     def test_parse_explain_header(self):
-        t, u, body = terms.parse_explain(EXPLAIN_LORA)
+        t, u, body, reply = terms.parse_explain(EXPLAIN_LORA)
+        self.assertIsNone(reply)
+        t, u, body, reply = terms.parse_explain("reply: Correct at 75%.\n  The update is zero.\n" + EXPLAIN_LORA)
+        self.assertEqual(reply, "Correct at 75%. The update is zero.")
         self.assertEqual([x["term"] for x in t], ["LoRA", "$W_{up}$"])
         self.assertEqual(u, ["gradient"])
         self.assertTrue(body.startswith("## LoRA"))
@@ -145,9 +148,13 @@ class TeachFlowTests(unittest.TestCase):
                  "options": ["$2dr$", "$d^2$"], "correct": "$2dr$", "explanation": "x"}
         p = self.v.cli("quiz", stdin=check, ok=False)
         self.assertIn("tutor explain", p.stderr)
-        self.v.cli("explain", "--node", "lora", stdin=EXPLAIN_LORA)
+        p = self.v.cli("explain", "--node", "lora", stdin=EXPLAIN_LORA, ok=False)
+        self.assertIn("reply:", p.stderr)
+        self.v.cli("explain", "--node", "lora", stdin="reply: Correct at 75%: the update starts at zero.\n" + EXPLAIN_LORA)
         note = self.v.note()
-        self.assertIn("[!abstract] New terms", note)
+        verdict, reply, heading, box = (note.index("Correct ✓"), note.index("Correct at 75%"),
+                                        note.index("## LoRA"), note.index("[!abstract] New terms"))
+        self.assertTrue(verdict < reply < heading < box)
         self.assertIn("**LoRA**: low-rank adaptation", note)
         self.v.cli("quiz", stdin=check)
 
@@ -162,7 +169,7 @@ class TeachFlowTests(unittest.TestCase):
     def test_stop_blocked_after_explain_without_question(self):
         self.v.cli("quiz", stdin=PREDICT)
         self.v.answer_quiz("The pretrained function")
-        self.v.cli("explain", "--node", "lora", stdin=EXPLAIN_LORA)
+        self.v.cli("explain", "--node", "lora", stdin="reply: Correct.\n" + EXPLAIN_LORA)
         out = self.v.hook({"hook_event_name": "Stop", "stop_hook_active": False})
         self.assertIn('"decision": "block"', out)
         out = self.v.hook({"hook_event_name": "Stop", "stop_hook_active": True})
@@ -171,7 +178,7 @@ class TeachFlowTests(unittest.TestCase):
     def test_recall_aside_is_not_the_answer(self):
         self.v.cli("quiz", stdin=PREDICT)
         self.v.answer_quiz("The pretrained function")
-        self.v.cli("explain", "--node", "lora", stdin=EXPLAIN_LORA)
+        self.v.cli("explain", "--node", "lora", stdin="reply: Correct.\n" + EXPLAIN_LORA)
         self.v.cli("recall", stdin={"type": "check", "nodeId": "lora", "uses": ["LoRA"],
                                     "question": "Why does LoRA start as the pretrained layer?",
                                     "answer": "Because $BA = 0$ at initialisation."})
@@ -192,7 +199,7 @@ class TeachFlowTests(unittest.TestCase):
     def test_terms_carry_over_to_next_session(self):
         self.v.cli("quiz", stdin=PREDICT)
         self.v.answer_quiz("The pretrained function")
-        self.v.cli("explain", "--node", "lora", stdin=EXPLAIN_LORA)
+        self.v.cli("explain", "--node", "lora", stdin="reply: Correct.\n" + EXPLAIN_LORA)
         self.v.cli("session", "end")
         self.v.cli("session", "start", "--kind", "teach", "--title", "second")
         listing = self.v.cli("terms", "list", "--all").stdout
@@ -213,6 +220,28 @@ class MirrorTests(unittest.TestCase):
         for _ in range(3):  # refused: no `uses`
             v.cli("quiz", stdin={k: x for k, x in PREDICT.items() if k != "uses"}, ok=False)
         self.assertEqual(v.note().count("A sentence the learner reads once."), 1)
+
+
+    def test_explain_lands_after_prose_written_before_it(self):
+        v = Vault()
+        v.to_teach_phase()
+        v.cli("quiz", stdin=PREDICT)
+        v.answer_quiz("The pretrained function")
+        transcript = v.dir / "transcript.jsonl"
+        transcript.write_text("")
+        v.hook({"hook_event_name": "Stop", "transcript_path": str(transcript)})
+        out = v.cli("explain", "--node", "lora", stdin="reply: Correct.\n" + EXPLAIN_LORA).stdout
+        marker = out[out.index("⟦"):out.index("⟧") + 1]
+        # Claude Code writes the step (its prose, then the tool result) only after the command ran.
+        with open(transcript, "a") as fh:
+            fh.write(json.dumps({"type": "assistant", "message": {"id": "m2", "role": "assistant", "content": [
+                {"type": "text", "text": "Prose written before the explain call."}]}}) + "\n")
+            fh.write(json.dumps({"type": "user", "message": {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "x", "content": f"(note markers, ignore: {marker})"}]}}) + "\n")
+        v.cli("flush")
+        note = v.note()
+        self.assertLess(note.index("Prose written before"), note.index("## LoRA"))
+        self.assertEqual(note.count("## LoRA"), 1)
 
 
 class GuardTests(unittest.TestCase):
