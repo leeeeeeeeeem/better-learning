@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -26,6 +27,7 @@ from tutorlib.vault import (  # noqa: E402
     append_note,
     bound_record_id,
     find_vault,
+    load_config,
     load_record,
     load_state,
     locked,
@@ -49,6 +51,49 @@ def remember_transcript(vault: Path, sid: str, path: str | None):
     if st["transcripts"].get(sid) != path:
         st["transcripts"][sid] = path
         save_state(vault, st)
+
+
+GUARDED_TOOLS = ("Bash", "Write", "Edit", "MultiEdit", "NotebookEdit")
+_WRITE_HINTS = re.compile(r"json\.dump|\.write\(|write_text|write_bytes|open\([^)]*['\"][wax]\+?['\"]|shutil\.(copy|move)|os\.(remove|rename|replace)|unlink\(")
+
+
+def protected_paths(vault: Path) -> list[str]:
+    folder = load_config(vault).get("folder", "Learning")
+    return [str(vault / ".tutor"), str(vault / folder / "Sessions"), str(vault / folder / "Plans")]
+
+
+def guard_reason(vault: Path, tool: str, tin: dict) -> str | None:
+    """Session notes, plans and .tutor/ are written by the tutor CLI and hooks
+    only. A direct write bypasses the checks (in one session the model patched
+    the record to defeat the explanation gate) and breaks the note's order."""
+    prot = protected_paths(vault)
+    folder = load_config(vault).get("folder", "Learning")
+    rel_markers = [".tutor/", f"{folder}/Sessions/", f"{folder}/Plans/", f"{folder}/Sessions\"", f"{folder}/Plans\""]
+    msg = ("[tutor guard] Blocked: session notes, plans and .tutor/ are written only by the tutor CLI and its hooks. "
+           "Use `tutor.py explain`, `quiz`, `recall`, `grade`, `terms add`, `flush`. If a CLI check refuses you, fix what "
+           "it names; if you believe the tool is broken, tell the learner. Never work around it.")
+    if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        fp = tin.get("file_path") or tin.get("notebook_path") or ""
+        if not fp:
+            return None
+        try:
+            full = str(Path(fp).expanduser().resolve())
+        except OSError:
+            return None
+        return msg if any(full == p or full.startswith(p + os.sep) for p in prot) else None
+    cmd = tin.get("command") or ""
+    hits = [m for m in rel_markers + prot if m in cmd]
+    if not hits:
+        return None
+    # Only the CLI and read-only commands may touch these paths.
+    stripped = re.sub(r"tutor\.py[^\n]*<<-?\s*['\"]?(\w+)['\"]?\n.*?\n\1[ \t]*(?=\n|$)", " ", cmd, flags=re.S)
+    stripped = re.sub(r"python3?\s+\S*tutor\.py[^;&|\n]*", " ", stripped)
+    if not any(m in stripped for m in rel_markers + prot):
+        return None
+    redirect = re.search(r">>?\s*['\"]?[^\s;|&'\"]*(\.tutor/|/Sessions/|/Plans/)", stripped)
+    tools = re.search(r"\b(tee|sed\s+-i|perl\s+-p?i|mv|cp|rm|truncate|dd|touch|install|rsync)\b[^;|&\n]*(\.tutor/|/Sessions/|/Plans/|Sessions\"|Plans\")", stripped)
+    script = _WRITE_HINTS.search(stripped)
+    return msg if (redirect or tools or script) else None
 
 
 def stop_reason(rec: dict, payload: dict) -> str | None:
@@ -96,6 +141,13 @@ def handle(payload: dict):
     if os.environ.get("TUTOR_DEBUG"):
         with open(vault / STATE_DIR / "hook-debug.jsonl", "a") as fh:
             fh.write(json.dumps(payload, ensure_ascii=False)[:20000] + "\n")
+
+    if event == "PreToolUse" and payload.get("tool_name") in GUARDED_TOOLS:
+        reason = guard_reason(vault, payload["tool_name"], payload.get("tool_input") or {})
+        if reason:
+            print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                                     "permissionDecisionReason": reason}}))
+        return
 
     with locked(vault):
         remember_transcript(vault, sid, payload.get("transcript_path"))
