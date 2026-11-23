@@ -1,8 +1,8 @@
 # Better Learning: a learning system for Claude Code + Obsidian
 
-> **Use [LearnHarness](https://github.com/amosblomqvist/learnharness) instead.** This project started because LearnHarness needed an API key, so Claude subscription users (Pro / Max) without one had no way to use it. LearnHarness now supports the Claude Code CLI, which removes that reason. It's the original, purpose-built app: a dedicated UI, a graph canvas, dictation, and the full experience this plugin only approximates.
+> **Use [LearnHarness](https://github.com/amosblomqvist/learnharness) instead.** This project started because LearnHarness needed an API key, so Claude subscription users (Pro / Max) without one had no way to use it. LearnHarness now supports the Claude Code CLI, which removes that reason. 
 >
-> **Why this repo still exists.** It is no longer just a port: it has features the originals don't have (spaced review questions, a term registry that keeps anything undefined out of a lesson, sessions that work the same in the terminal, on a phone and in Obsidian) and it follows my own learning style. See [Changes from the originals](#changes-from-the-originals). It's a personal project, shared as-is: it follows my preferences, and changes whenever they do.
+> **Why this repo still exists.** It is no longer just a port: it has features the originals don't have (spaced review questions, a term registry that keeps anything undefined out of a lesson, sessions that work the same in the terminal, on a phone and in Obsidian) and it follows my own learning style. See [Changes from the originals](#changes-from-the-originals). It's a personal project, it follows my preferences and changes whenever they do.
 
 This started as a Claude Code port of two systems:
 
