@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -547,10 +548,23 @@ def cmd_grade(args):
         print(advice)
 
 
+_FENCED_RE = re.compile(r"```.*?```", re.S)
+
+
+def _setup_prose_chars(body: str) -> int:
+    """A setup's length as the learner reads it: prose only (diagrams, code and
+    the New terms box don't count)."""
+    return len(re.sub(r"\s+", " ", _FENCED_RE.sub(" ", body)).strip())
+
+
 def cmd_explain(args):
-    """The only way teaching content reaches the note. It is written at once (no
-    waiting for the transcript), counts for the check gate, and registers the
-    terms it defines."""
+    """The only way teaching content reaches the note. It is queued behind what
+    came before it, counts for the check gate (unless it is a setup), and
+    registers the terms it defines.
+
+    A setup is the short block before a prediction: it defines every term the
+    question uses and says what the question asks, never the answer. It is any
+    explanation of a node that has no prediction yet, or one passed --setup."""
     text = read_text(args, "none")
     with Session() as s:
         rec = s.rec
@@ -565,6 +579,21 @@ def cmd_explain(args):
             if node not in ids:
                 raise TutorError(f"explain: --node must be a plan node id: {', '.join(ids) or '(no plan yet)'}. "
                                  "For a clarification outside the loop, omit --node.")
+        elif args.setup:
+            raise TutorError("explain: --setup needs --node (the node whose prediction it prepares).")
+        is_setup = bool(node) and (args.setup or not any(
+            q.get("nodeId") == node and q.get("type") == "predict" for q in rec["questions"]))
+        if is_setup:
+            cap = int(load_config(s.vault).get("max_setup_chars", 900))
+            n = _setup_prose_chars(body)
+            if n > cap:
+                raise TutorError(
+                    f"explain: this is a setup (the block before the prediction on `{node}`), and its prose is {n} "
+                    f"characters; the limit is {cap}. A setup only makes the question understandable: the `terms:` "
+                    "header defines every term the question uses, and a few sentences say what the question asks. "
+                    "It never gives the answer or explains the mechanism the learner is about to predict: that is the "
+                    "explanation after their answer, which is the detailed one. Cut it down and run it again."
+                )
         if rec.get("plan"):  # teaching has started: the define-before-use rule applies
             if uses is None:
                 raise TutorError(
@@ -589,9 +618,12 @@ def cmd_explain(args):
         if reply:
             rec["reply_due"] = None
         rec.setdefault("explanations", []).append(
-            {"node": node, "at": now_iso(), "chars": len(body), "terms": [t["term"] for t in terms], "uses": uses or []})
+            {"node": node, "at": now_iso(), "chars": len(body), "terms": [t["term"] for t in terms], "uses": uses or [],
+             "setup": is_setup})
         if node:
-            ex = rec.setdefault("explained_since_answer", [])
+            # A setup prepares the prediction; it is not the node's explanation.
+            key = "setup_since_answer" if is_setup else "explained_since_answer"
+            ex = rec.setdefault(key, [])
             if node not in ex:
                 ex.append(node)
         open_q = questions.open_question(rec)
@@ -600,10 +632,14 @@ def cmd_explain(args):
     if open_q is not None:
         print(f"Question {open_q['qid']} is still open. End your turn by repeating it (copied exactly) so the learner can "
               "answer it now.")
+    elif is_setup:
+        print(f"This was a setup. Next: in this same turn, ask the prediction on `{node}`. Do not end the turn first, "
+              "and never ask the learner to say ready. After their answer, the detailed explanation follows "
+              "(`tutor explain` with a `reply:` line), then the check.\n"
+              "In the chat, write at most one line pointing to the new section.")
     elif node:
-        print(f"Next: in this same turn, ask the next question on `{node}` (the check after an explanation, or the "
-              "prediction this setup prepares). Do not end the turn first, and never ask the learner to say ready: the "
-              "note already shows the explanation, and the question waits while they read.\n"
+        print(f"Next: in this same turn, ask the check on `{node}`. Do not end the turn first, and never ask the "
+              "learner to say ready: the note already shows the explanation, and the question waits while they read.\n"
               "In the chat, write at most one line pointing to the new section; do not repeat the explanation.")
     else:
         print("Next: answer the learner in one line in the chat, then continue where the session was.")
@@ -856,6 +892,8 @@ def main(argv=None):
         p.set_defaults(fn=fn)
     p = sub.add_parser("explain", help="write an explanation (or a setup, or an aside) into the note now")
     p.add_argument("--node", help="plan node id; omit for an aside (a clarification outside the loop)")
+    p.add_argument("--setup", action="store_true",
+                   help="a short setup before a later prediction on a node that already had one")
     p.add_argument("--file")
     p.set_defaults(fn=cmd_explain)
     p = sub.add_parser("plan")

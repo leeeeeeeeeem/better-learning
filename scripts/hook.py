@@ -101,7 +101,7 @@ def stop_reason(rec: dict, payload: dict) -> str | None:
     learner would have to type "ready" to get the question."""
     if payload.get("stop_hook_active") or rec.get("kind") != "teach":
         return None
-    explained = rec.get("explained_since_answer") or []
+    explained = (rec.get("explained_since_answer") or []) + (rec.get("setup_since_answer") or [])
     if not explained or questions.open_question(rec) is not None:
         return None
     node = explained[-1]
@@ -216,6 +216,7 @@ def handle(payload: dict):
                 append_note(note, block)
                 rec["prose_since_answer"] = 0
                 rec["explained_since_answer"] = []
+                rec["setup_since_answer"] = []
                 graded = next((q for q in reversed(rec["questions"]) if q.get("tool_use_id") == tid), None)
                 if ctx and graded and graded.get("phase") != "probe":
                     # a graded teach-phase quiz: the next explanation opens with the reaction to it

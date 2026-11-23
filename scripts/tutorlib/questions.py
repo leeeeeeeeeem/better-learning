@@ -502,6 +502,7 @@ def grade_recall(rec: dict, qid: str, verdict: str, feedback: str | None, answer
     q["status"] = "graded"
     rec["prose_since_answer"] = 0
     rec["explained_since_answer"] = []
+    rec["setup_since_answer"] = []
     if q.get("phase") != "probe":  # probe answers are read, not reacted to in an explanation
         rec["reply_due"] = q["qid"]
     return q

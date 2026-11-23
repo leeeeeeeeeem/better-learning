@@ -175,6 +175,28 @@ class TeachFlowTests(unittest.TestCase):
         out = self.v.hook({"hook_event_name": "Stop", "stop_hook_active": True})
         self.assertNotIn("block", out)
 
+    def test_setup_before_prediction_is_short_and_not_the_explanation(self):
+        setup = ("terms:\n- frozen layer :: a layer whose weights training does not update\nuses: gradient\n---\n"
+                 "## A frozen layer with a trainable update\n\n{}")
+        long_body = "The question asks what such a layer computes at the first step. " * 20
+        p = self.v.cli("explain", "--node", "lora", stdin=setup.format(long_body), ok=False)
+        self.assertIn("setup", p.stderr)
+        self.v.cli("explain", "--node", "lora",
+                   stdin=setup.format("The question asks what such a layer computes at the first training step."))
+        self.assertEqual(self.v.record()["explained_since_answer"] or [], [])
+        out = self.v.hook({"hook_event_name": "Stop", "stop_hook_active": False})
+        self.assertIn('"decision": "block"', out)  # a setup must be followed by its prediction
+        self.v.cli("quiz", stdin=PREDICT)
+        self.v.answer_quiz("The pretrained function")
+        # A later setup on the same node (--setup) does not satisfy the check gate either.
+        self.v.cli("explain", "--node", "lora", "--setup",
+                   stdin="reply: Correct.\n" + setup.format("The next question asks about the parameter count."))
+        check = {"type": "check", "nodeId": "lora", "uses": ["frozen layer"], "question": "What does a frozen layer keep?",
+                 "options": ["Its weights", "Its inputs"], "correct": "Its weights", "explanation": "x"}
+        self.assertIn("tutor explain", self.v.cli("quiz", stdin=check, ok=False).stderr)
+        self.v.cli("explain", "--node", "lora", stdin=EXPLAIN_LORA)  # the detailed explanation: no cap
+        self.v.cli("quiz", stdin=check)
+
     def test_recall_aside_is_not_the_answer(self):
         self.v.cli("quiz", stdin=PREDICT)
         self.v.answer_quiz("The pretrained function")

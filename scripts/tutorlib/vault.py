@@ -30,7 +30,7 @@ from pathlib import Path
 STATE_DIR = ".tutor"
 # min_explanation_chars: how much prose must follow an answered question before
 # a multiple-choice check may be shown (the explanation is never optional).
-DEFAULT_CONFIG = {"folder": "Learning", "min_explanation_chars": 400}
+DEFAULT_CONFIG = {"folder": "Learning", "min_explanation_chars": 400, "max_setup_chars": 900}
 SUBFOLDERS = ("Sessions", "Practice", "Plans", "Graph", "Research", "viz", "demos")
 
 
