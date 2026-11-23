@@ -634,8 +634,8 @@ def cmd_explain(args):
               "answer it now.")
     elif is_setup:
         print(f"This was a setup. Next: in this same turn, ask the prediction on `{node}`. Do not end the turn first, "
-              "and never ask the learner to say ready. After their answer, the detailed explanation follows "
-              "(`tutor explain` with a `reply:` line), then the check.\n"
+              "and never ask the learner to say ready. After their answer, the explanation follows, sized by their "
+              "prediction (`tutor explain` with a `reply:` line), then the check.\n"
               "In the chat, write at most one line pointing to the new section.")
     elif node:
         print(f"Next: in this same turn, ask the check on `{node}`. Do not end the turn first, and never ask the "

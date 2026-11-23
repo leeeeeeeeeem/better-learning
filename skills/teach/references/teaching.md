@@ -38,15 +38,15 @@ Each question, prediction or check, can be **closed** (`tutor quiz`, multiple ch
 - Its shape is a nudge, not a test: point at the problem with the current state ("this works, but it can't survive X. What do you think has to give?"), and let them try to discover the next step. Reveal nothing more. If the concept's name would give the answer away, hold the name back until the explanation ([clarity.md](clarity.md)).
 - **The setup: short, and only enough to understand the question.** Before the prediction, a `tutor explain --node <id>` block (in the same turn) does two things: its `terms:` header defines every new term and symbol the question uses, and a few sentences of prose say what the question is asking (the situation and the problem). Nothing else: no mechanism, no answer, no hint toward it. They infer the answer themselves; the full teaching comes after their answer. The CLI treats an explanation of a node with no prediction yet (or one passed `--setup`) as a setup, caps its prose (diagrams, code and the terms box don't count), and doesn't count it as the node's explanation for the check gate. A prediction may hold back the *name* of the concept it is about, never the definitions of what its question mentions: a learner who can't parse the question can't predict.
 
-### 2. The explanation: always, detailed, sized by the prediction
+### 2. The explanation: always, sized by the prediction
 
-This is the detailed block, the real teaching of the node: everything the setup deliberately left out lands here. Write it with `tutor explain --node <id>` (see [questions.md](questions.md#tutor-explain-every-explanation)). Open by resolving the prediction explicitly, in the block's `reply:` line: what they predicted, what is actually true, and why. The note shows it right under the verdict. Name the concept in the first sentences ([clarity.md](clarity.md)). The note already showed them the verdict and the short explanation attached to the question. Your explanation is the real one; make it land on their attempt. Then teach the node.
+Write it with `tutor explain --node <id>` (see [questions.md](questions.md#tutor-explain-every-explanation)). Open by resolving the prediction explicitly, in the block's `reply:` line: what they predicted, what is actually true, and why. The note shows it right under the verdict. Name the concept in the first sentences ([clarity.md](clarity.md)). The note already showed them the verdict and the short explanation attached to the question. Your explanation is the real one; make it land on their attempt. Then teach the node.
 
 Size it from the prediction's verdict, confidence, and thinking:
 
 | Their prediction | The explanation |
 |---|---|
-| Correct and confident | A **revision**: the complete statement of the node, every fact the check will rely on, stated, without re-deriving what their reasoning already showed. Not a three-sentence summary. |
+| Correct and confident | A **revision**: compact, but a complete statement of the node, every fact the check will rely on, stated. Not a three-sentence summary. |
 | Correct but unsure (low confidence, thin or shaky thinking) | **Medium**: the full statement, plus the part their thinking shows is shaky. |
 | Wrong, or "I don't know" | **Detailed**: start from their attempt (where their model goes wrong and why) then build the node step by step, with a worked example. |
 
@@ -97,7 +97,7 @@ Two checks must test different things, or the same thing in a different way. Nev
 
 ### The rhythm
 
-**short setup via `tutor explain` → predict → their answer → detailed `tutor explain` (with `reply:`) → check (→ follow-up check) → (repair via `tutor explain` → check)* → the next node.** One question per turn. A turn never ends on an explanation alone.
+**short setup via `tutor explain` → predict → their answer → `tutor explain` → check (→ follow-up check) → (repair via `tutor explain` → check)* → the next node.** One question per turn. A turn never ends on an explanation alone.
 
 ### Asides
 
