@@ -53,7 +53,7 @@ A refusal prints `ERROR: ...`. Read it, fix the call, retry.
 **Start / resume.**
 1. `tutor status`. If no vault is found, ask the learner (AskUserQuestion) where their Obsidian vault is, then `tutor init <vault-dir>`. Claude Code must run inside the vault (or `TUTOR_VAULT` must point to it) for the mirror hooks to see it.
 2. New topic: `tutor session start --kind teach --title "<short topic>"`. Tell them the note path once, so they can open it in Obsidian.
-3. Continuing: `tutor session list`, then `tutor session resume <id|title>`: it prints the probe, plan and recent questions; read the note for the rest before continuing.
+3. Continuing: `tutor session list`, then `tutor session resume <id|title>`: it prints the probe, plan and recent questions; read the note for the rest before continuing. Once nodes have been completed, the first question after a resume is a review; an unanswered question from before the break waits (suspended) and is re-sent with its setup by `tutor reask` after the review.
 4. Pausing or finishing: `tutor session end`, then offer to extract what was taught into the knowledge graph (the `graph` skill).
 
 ## The session: probe → plan → teach
