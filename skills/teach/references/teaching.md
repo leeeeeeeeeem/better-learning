@@ -105,6 +105,25 @@ When they interrupt (a term they don't know, "resend that", "this is unclear", l
 
 **While a question is open, an aside never answers it.** Don't solve it, eliminate or hint at options, confirm or reject a proposed answer, give the final step, or work a near-identical example to completion. You may clarify the question's wording, define a term, explain a concept the question relies on, or give a small nudge that leaves the assessed reasoning to them. Keep the answer to the aside short: the smallest clarification that unblocks them. And an explanation they asked for is not evidence they understood it: only their answer to the question is.
 
+### Reviews: keeping earlier nodes alive
+
+A long session teaches more than holds at once: a node they had at the start can be gone by the end. So earlier nodes come back as **review questions** (`"type": "review"`, `nodeId` = the node reviewed), spaced through the session:
+
+- **Every 2 completed nodes** (`review_every_nodes` in the vault's tutor config). A node is completed by its first passed check. The next node's setup or prediction is refused until one review has been asked.
+- **The first question after a resume.** Forgetting happens over a break. (An open question from before the break is answered first.)
+- **Before the session ends.** One or two reviews on the most important nodes. `tutor session end` is refused until a review was graded after the last completed node; if they are only pausing, use `tutor session end --pause`.
+
+One review per round. The CLI ranks the completed nodes by how long since each was last retrieved (against a spacing interval that doubles after each confident pass and resets after a miss), how much of the plan depends on it, and how weak the answers on it were. It lists the top candidates with reasons when a review is due. Pick from them, or another completed node if it serves them better.
+
+A review question:
+
+- Is closed or open, your choice, like a check.
+- Comes with **no setup and no explanation before it**: it tests what they already hold. It can only use terms they were taught or showed in the probe.
+- Comes from a **new angle**: apply the idea to a new case, or combine it with a node taught later (that tests the connection as well). Never the original check reworded.
+- Doesn't move their position on the plan map.
+
+After the answer: a confident pass is acknowledged in the next explanation's `reply:` line, and the session continues. An unsure pass gets a one-line reinforcement there. **A miss is repaired before anything else**: `tutor explain --node <reviewed node>` with a `reply:` line and the smallest concrete case of what slipped, then one more review on that node from a different angle. New nodes are refused until it passes.
+
 ## What a check must be
 
 Every check exists to answer one question: did the idea actually **take**, not whether they can read it back.
@@ -119,4 +138,4 @@ Every check exists to answer one question: did the idea actually **take**, not w
 
 ## Ending
 
-When the goal is reached (it feels obviously true because it is seen to follow), say so plainly, revisit anything you flagged as uncertain during the session, then `tutor session end` and offer to extract the session into the knowledge graph (`/better-learning:graph`) and to set up a practice session later (`/better-learning:practice`).
+When the goal is reached (it feels obviously true because it is seen to follow), say so plainly, revisit anything you flagged as uncertain during the session, ask the end-of-session review questions (one or two, on the most important nodes; see "Reviews"), then `tutor session end` and offer to extract the session into the knowledge graph (`/better-learning:graph`) and to set up a practice session later (`/better-learning:practice`).

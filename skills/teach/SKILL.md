@@ -87,6 +87,7 @@ Use both graded instruments. Choose closed or open per question, and one or two 
 - **Never write to the session note, the plan note or `.tutor/` yourself** (no Write/Edit, no scripts, no redirects). The CLI and hooks are the only writers; a guard hook refuses direct writes. If a CLI check refuses you, do what it says. If you believe the tool is broken, say so to the learner. Never work around a check.
 - Never build on a step they haven't demonstrated.
 - Never author a question's answer after seeing their response. The commitment is the integrity of the whole system.
-- Every graded question in the teach phase carries `type` (`predict` | `check`) and a `nodeId` from the plan.
+- Every graded question in the teach phase carries `type` (`predict` | `check` | `review`) and a `nodeId` from the plan.
+- **Earlier nodes come back as reviews**: one review question every 2 completed nodes, as the first question after a resume, and before the session ends. The CLI refuses the next node (and `session end`) until it is done, and lists the nodes most worth reviewing. A missed review is repaired and re-checked before moving on ([teaching.md](references/teaching.md#reviews-keeping-earlier-nodes-alive)).
 - Name a concept before you explain it, and give each concept one name for the whole session. When the field has several names, or two names look alike, say so explicitly ([clarity.md](references/clarity.md)).
 - Everything you write renders in Obsidian: LaTeX for all math, everywhere (prose, questions, options, explanations).
