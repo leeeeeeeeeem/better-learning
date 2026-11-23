@@ -282,6 +282,13 @@ class GuardTests(unittest.TestCase):
         self.assertTrue(self.deny("Bash", {"command": f"python3 - <<'EOF'\nimport json\np='{d}/.tutor/sessions/a.json'\n"
                                                       "r=json.load(open(p))\njson.dump(r,open(p,'w'))\nEOF"}))
         self.assertFalse(self.deny("Bash", {"command": "grep -n x Learning/Sessions/a.md"}))
+        # editing docs that merely mention a protected path is not a write to it
+        self.assertFalse(self.deny("Bash", {"command": "python3 - <<'X'\nfrom pathlib import Path\n"
+                                                      "p=Path('skills/teach/references/questions.md'); s=p.read_text()\n"
+                                                      "s=s.replace('a', 'cap in `.tutor/config.json`')\np.write_text(s)\nX"}))
+        self.assertTrue(self.deny("Bash", {"command": f"python3 -c \"open('{d}/Learning/Sessions/a.md','a').write('x')\""}))
+        self.assertTrue(self.deny("Bash", {"command": "python3 - <<'X'\nimport json\np = vault + '/.tutor/sessions/a.json'\n"
+                                                      "json.dump({}, open(p, 'w'))\nX"}))
         self.assertFalse(self.deny("Bash", {"command": "python3 tutor.py explain --node a <<'EOF'\nterms:\n- x :: y\n"
                                                       "uses: none\n---\nwrite( Learning/Sessions/ is fine here\nEOF"}))
 

@@ -54,6 +54,12 @@ def remember_transcript(vault: Path, sid: str, path: str | None):
 
 
 GUARDED_TOOLS = ("Bash", "Write", "Edit", "MultiEdit", "NotebookEdit")
+_PROT = r"(?:\.tutor/|/Sessions/|/Plans/)"
+# A path-like string literal (no spaces before the protected part), optionally
+# built by concatenation, used as open()/Path() target or assigned to a variable.
+_PATHLIT = r"(?:\w+\s*\+\s*)?[frb]?['\"][^'\"\s]*" + _PROT
+_TARGET_RE = re.compile(r"(?:open|Path)\(\s*(?:[^)]*\+\s*)?[frb]?['\"][^'\"\s]*" + _PROT
+                        + r"|\b\w+\s*=\s*" + _PATHLIT)
 _WRITE_HINTS = re.compile(r"json\.dump|\.write\(|write_text|write_bytes|open\([^)]*['\"][wax]\+?['\"]|shutil\.(copy|move)|os\.(remove|rename|replace)|unlink\(")
 
 
@@ -92,7 +98,11 @@ def guard_reason(vault: Path, tool: str, tin: dict) -> str | None:
         return None
     redirect = re.search(r">>?\s*['\"]?[^\s;|&'\"]*(\.tutor/|/Sessions/|/Plans/)", stripped)
     tools = re.search(r"\b(tee|sed\s+-i|perl\s+-p?i|mv|cp|rm|truncate|dd|touch|install|rsync)\b[^;|&\n]*(\.tutor/|/Sessions/|/Plans/|Sessions\"|Plans\")", stripped)
-    script = _WRITE_HINTS.search(stripped)
+    # A script write counts only when a protected path is its target: inside an
+    # open()/Path() call, or a string assigned to a variable. A protected path
+    # merely mentioned in text (a doc edit, a message) is not a write.
+    target = _TARGET_RE.search(stripped)
+    script = bool(target) and bool(_WRITE_HINTS.search(stripped))
     return msg if (redirect or tools or script) else None
 
 
