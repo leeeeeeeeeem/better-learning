@@ -126,6 +126,15 @@ def log_ask_answer(rec: dict, tool_use_id: str, tool_input: dict, tool_response)
     if quiz is not None and quiz["status"] in ("committed", "asked"):
         quiz["tool_use_id"] = tool_use_id
         verdict = questions.grade_quiz(quiz, tool_input, tool_response)
+        if (quiz.get("result") or {}).get("status") == "cancelled":
+            # Declined or closed without an answer (on a phone the dialog can
+            # cover the text above it). Not an answer: the question stays open.
+            quiz["status"] = "asked"
+            quiz.pop("result", None)
+            return None, (f"[tutor] The learner closed the dialog for {quiz['qid']} without answering. This is not an "
+                          "answer: the question is still open. Make sure the setup or explanation it depends on is "
+                          "in the chat (they may be reading only the chat), then call AskUserQuestion again with the "
+                          "same input. Do not ask it as plain text.")
         advice = questions.check_advice(rec, quiz)
         return blocks.quiz_answer_block(quiz), verdict + ("\n" + advice if advice else "")
     answers, notes = questions.extract_answers(tool_input, tool_response)
