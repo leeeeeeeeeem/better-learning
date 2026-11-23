@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import math
 import re
 from pathlib import Path
 
@@ -199,6 +200,55 @@ def find(g: dict, pattern: str) -> list[dict]:
         hay = [n["name"], n["statement"], *n["aliases"]]
         if any(fnmatch.fnmatchcase(h.lower(), pat) for h in hay):
             out.append(n)
+    return out
+
+
+_STOP = {
+    "the", "and", "for", "that", "with", "from", "this", "are", "its", "not", "into", "than", "then", "but", "can",
+    "each", "one", "has", "have", "any", "all", "only", "when", "which", "their", "they", "them", "who", "what",
+    "how", "why", "was", "were", "been", "being", "does", "per", "via", "same", "other", "such", "more", "less",
+    "also", "both", "there", "these", "those", "where", "while", "because", "between", "under", "over", "every",
+    "frac", "mathbb", "mathrm", "text", "left", "right", "cdot", "times", "top",
+}
+
+
+def _tokens(*texts: str) -> set[str]:
+    out = set()
+    for t in texts:
+        for w in re.findall(r"[a-z][a-z0-9_]+", (t or "").lower()):
+            if w in _STOP or len(w) < 3:
+                continue
+            out.add(w[:-1] if w.endswith("s") and len(w) > 4 else w)
+    return out
+
+
+def candidates(g: dict, findings: dict, top: int = 5, min_score: float = 0.12) -> list[tuple[dict, list]]:
+    """For each new finding (no linkTo, not an existing id), the existing nodes
+    most likely to state the same claim, ranked by word overlap of name,
+    statement and aliases, with a bonus for a matching name or alias."""
+    nodes = list(g["nodes"].values())
+    node_tok = {n["id"]: _tokens(n["name"], n["statement"], *n["aliases"]) for n in nodes}
+    node_names = {n["id"]: {x.lower().strip() for x in [n["name"], *n["aliases"]]} for n in nodes}
+    out = []
+    for p in findings.get("propositions") or []:
+        if p.get("linkTo") or str(p.get("id", "")).startswith("n_"):
+            continue
+        pt = _tokens(p.get("name", ""), p.get("statement", ""), *(p.get("aliases") or []))
+        pnames = {x.lower().strip() for x in [p.get("name", ""), *(p.get("aliases") or [])] if x}
+        scored = []
+        for n in nodes:
+            nt = node_tok[n["id"]]
+            if not pt or not nt:
+                continue
+            score = len(pt & nt) / math.sqrt(len(pt) * len(nt))
+            if pnames & node_names[n["id"]]:
+                score += 1.0
+            elif _tokens(p.get("name", "")) & _tokens(n["name"]):
+                score += 0.2
+            if score >= min_score:
+                scored.append((score, n))
+        scored.sort(key=lambda x: -x[0])
+        out.append((p, scored[:top]))
     return out
 
 

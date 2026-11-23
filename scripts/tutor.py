@@ -811,6 +811,18 @@ def cmd_graph(args):
                           "practice": graph.practice_history(g, nid)}, indent=2, ensure_ascii=False))
     elif args.gcmd == "digest":
         print(graph.digest(g, args.source) or "(nothing extracted from this source yet)")
+    elif args.gcmd == "candidates":
+        findings = json.loads(Path(args.file).read_text())
+        rows = graph.candidates(g, findings, top=args.top)
+        if not rows:
+            print("No new propositions to check (every proposition has linkTo or is an existing id).")
+        for p, hits in rows:
+            print(f"\n{p.get('id')} · {p.get('name')}: {p.get('statement', '')}")
+            if not hits:
+                print("  (no likely match in the graph)")
+            for score, n in hits:
+                born = g["sources"].get(graph.birth_source(n) or "", {}).get("title", graph.birth_source(n))
+                print(f"  {score:.2f} [{n['id']}] {n['name']}: {n['statement']}  ⟨born: {born}⟩")
 
 
 # ─── figures and demos ───────────────────────────────────────────────────────
@@ -929,6 +941,9 @@ def main(argv=None):
     p.add_argument("id")
     p = pg.add_parser("digest")
     p.add_argument("--source", required=True)
+    p = pg.add_parser("candidates", help="rank existing nodes that may state the same claim as each new finding")
+    p.add_argument("--file", required=True)
+    p.add_argument("--top", type=int, default=5)
     p = pg.add_parser("merge")
     p.add_argument("--source", required=True)
     p.add_argument("--file")

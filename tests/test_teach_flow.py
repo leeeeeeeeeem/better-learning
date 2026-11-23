@@ -21,7 +21,7 @@ CLI = ROOT / "scripts" / "tutor.py"
 HOOK = ROOT / "scripts" / "hook.py"
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from tutorlib import questions, terms  # noqa: E402
+from tutorlib import graph, questions, terms  # noqa: E402
 
 SID = "test-sid"
 
@@ -119,6 +119,26 @@ class TermTests(unittest.TestCase):
         self.assertEqual([x["term"] for x in t], ["LoRA", "$W_{up}$"])
         self.assertEqual(u, ["gradient"])
         self.assertTrue(body.startswith("## LoRA"))
+
+
+class GraphCandidateTests(unittest.TestCase):
+    def test_paraphrase_ranks_first_and_unrelated_gets_none(self):
+        def node(nid, name, statement, aliases=()):
+            return {"id": nid, "name": name, "statement": statement, "aliases": list(aliases), "provenance": []}
+        g = {"nodes": {n["id"]: n for n in [
+            node("n_1", "Chain rule", "For differentiable $f, g$: $(g \\circ f)'(a) = g'(f(a)) f'(a)$.", ["derivative of a composition"]),
+            node("n_2", "Freezing keeps layers in the chain rule",
+                 "A frozen layer is not updated, but backpropagation still passes the gradient through it."),
+        ]}, "sources": {}}
+        findings = {"propositions": [
+            {"id": "p1", "name": "Frozen layers stay in backpropagation",
+             "statement": "Gradients still flow through frozen layers; their weights are just not updated."},
+            {"id": "p2", "name": "Sourdough", "statement": "Wild yeast leavens sourdough bread."},
+            {"id": "p3", "name": "x", "statement": "y", "linkTo": "n_1"}]}
+        rows = graph.candidates(g, findings)
+        self.assertEqual([p["id"] for p, _ in rows], ["p1", "p2"])  # linked findings are skipped
+        self.assertEqual(rows[0][1][0][1]["id"], "n_2")
+        self.assertEqual(rows[1][1], [])
 
 
 class TeachFlowTests(unittest.TestCase):
