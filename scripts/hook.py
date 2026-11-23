@@ -60,7 +60,7 @@ _PROT = r"(?:\.tutor/|/Sessions/|/Plans/)"
 _PATHLIT = r"(?:\w+\s*\+\s*)?[frb]?['\"][^'\"\s]*" + _PROT
 _TARGET_RE = re.compile(r"(?:open|Path)\(\s*(?:[^)]*\+\s*)?[frb]?['\"][^'\"\s]*" + _PROT
                         + r"|\b\w+\s*=\s*" + _PATHLIT)
-_WRITE_HINTS = re.compile(r"json\.dump|\.write\(|write_text|write_bytes|open\([^)]*['\"][wax]\+?['\"]|shutil\.(copy|move)|os\.(remove|rename|replace)|unlink\(")
+_WRITE_HINTS = re.compile(r"json\.dump\(|\.write\(|write_text|write_bytes|open\([^)]*['\"][wax]\+?['\"]|shutil\.(copy|move)|os\.(remove|rename|replace)|unlink\(")
 
 
 def protected_paths(vault: Path) -> list[str]:

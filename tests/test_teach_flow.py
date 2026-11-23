@@ -282,6 +282,9 @@ class GuardTests(unittest.TestCase):
         self.assertTrue(self.deny("Bash", {"command": f"python3 - <<'EOF'\nimport json\np='{d}/.tutor/sessions/a.json'\n"
                                                       "r=json.load(open(p))\njson.dump(r,open(p,'w'))\nEOF"}))
         self.assertFalse(self.deny("Bash", {"command": "grep -n x Learning/Sessions/a.md"}))
+        # reading state and printing it is not a write
+        self.assertFalse(self.deny("Bash", {"command": f"python3 -c \"import json;g=json.load(open('{d}/.tutor/graph.json'));"
+                                                      "print(json.dumps(g))\""}))
         # editing docs that merely mention a protected path is not a write to it
         self.assertFalse(self.deny("Bash", {"command": "python3 - <<'X'\nfrom pathlib import Path\n"
                                                       "p=Path('skills/teach/references/questions.md'); s=p.read_text()\n"
