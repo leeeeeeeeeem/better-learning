@@ -298,6 +298,7 @@ def cmd_session_resume(args):
         bind(vault, sid, rec["id"])
         if rec["kind"] == "teach" and reviewlib.completed(rec):
             rec["review_resume_due"] = True  # the first question after a break is a review
+            questions.suspend_open(rec)  # an unanswered question waits until after the review
         append_note(note_abspath(vault, rec), blocks.note_block(f"Resumed {now_iso()[:16].replace('T', ' ')}"))
         _start_mirror(vault, sid, rec)
         save_record(vault, rec)
@@ -311,6 +312,12 @@ def cmd_session_resume(args):
         for n in rec["plan"]["nodes"]:
             print(f"  {n['id']} [{st[n['id']]}] {n['title']}")
         print("edges: " + ", ".join(f"{a}->{b}" for a, b in rec["plan"]["edges"]))
+    sus = questions.suspended(rec)
+    if sus is not None:
+        print(f"\nSuspended question: {sus['qid']} ({sus.get('type')}, node {sus.get('nodeId')}) was asked in an "
+              "earlier conversation and has no answer. It waits until after the review below. Do not ask it now.\n"
+              "After the review is graded and handled (a missed review is repaired and re-checked first), run "
+              "`tutor.py reask --reply \"<your reaction to the review>\"`: it re-sends the setup and the question.")
     q = questions.open_question(rec)
     if q is not None and q["tool"] == "quiz":
         # The dialog from the earlier conversation is gone. Re-asking with the
@@ -472,6 +479,52 @@ def cmd_plan(args):
               f"3. Before you teach, read {ref('teach', 'teaching.md')}.")
 
 
+def cmd_reask(args):
+    """Re-send a question suspended at a resume: the reaction to the review,
+    the node's last setup/explanation block again, then the same question with
+    the same committed answer."""
+    with Session() as s:
+        rec = s.rec
+        q = questions.suspended(rec)
+        if q is None:
+            raise TutorError("reask: no question is suspended.")
+        why = reviewlib.due(rec)
+        if why:
+            raise TutorError("reask: the review comes first.\n" + reviewlib.describe(rec, why))
+        if rec.get("reply_due") and not args.reply:
+            raise TutorError(f"reask: the learner's answer to {rec['reply_due']} has no reaction yet. Pass "
+                             "--reply \"<your reaction>\": it is shown first, before the re-sent setup.")
+        stored = (rec.get("last_explain") or {}).get(q.get("nodeId"))
+        if stored is None and not args.without_setup:
+            raise TutorError(
+                f"reask: no stored setup for node `{q.get('nodeId')}` (it was written before reask existed). Write it "
+                f"again with `tutor.py explain --node {q.get('nodeId')} --setup` (the same terms and situation as "
+                "before, short), then run reask again. If the question needs no setup, pass --without-setup.")
+        parts, echo = [], []
+        if args.reply:
+            parts.append(blocks.dedash(args.reply.strip()))
+            echo.append(args.reply.strip())
+            rec["reply_due"] = None
+        if stored and not args.without_setup:
+            parts.append(stored["block"])
+            echo.append(stored["echo"])
+        if parts:
+            s.append(f"^{mirror._next_anchor(rec)}\n\n" + "\n\n".join(parts))
+            rec["explain_echo"] = {"text": "\n".join(echo), "node": q.get("nodeId"), "at": now_iso()}
+        questions.unsuspend(rec, q)
+        if q["tool"] == "recall":
+            s.append(blocks.quiz_question_block(q), echo=q["question"])
+    print(f"Re-sent {q['qid']}." + (" The note shows the reaction and the setup again." if parts else ""))
+    if parts:
+        print("Now write the same text as your chat message (the reaction, then the setup: its new terms and body), "
+              "so a learner on the terminal or a phone sees it.")
+    if q["tool"] == "quiz":
+        print("Then call AskUserQuestion with this input. Do not change it:")
+        print(json.dumps(questions.ask_payload(q), indent=2, ensure_ascii=False))
+    else:
+        print("Then end your turn with the question as your message, copied exactly:\n\n" + q["question"])
+
+
 def cmd_terms_add(args):
     spec = read_spec(args)
     with Session() as s:
@@ -592,6 +645,10 @@ def cmd_explain(args):
             raise TutorError("explain: --setup needs --node (the node whose prediction it prepares).")
         is_setup = bool(node) and (args.setup or not any(
             q.get("nodeId") == node and q.get("type") == "predict" for q in rec["questions"]))
+        sus = questions.suspended(rec)
+        if is_setup and sus is not None and node != sus.get("nodeId"):
+            raise TutorError(f"explain: refused, question {sus['qid']} (suspended at the resume) comes first.\n"
+                             + questions.reask_hint(rec))
         why = reviewlib.due(rec)
         if is_setup and why and (why != "every" or node != questions.current_node(rec)):
             raise TutorError("explain: refused, a review comes first (a setup starts the next question).\n"
@@ -628,6 +685,11 @@ def cmd_explain(args):
         # Queued like every CLI block: it lands right after whatever was written
         # before this command (prose, grades), never above it.
         s.append(blocks.explain_block(body, terms, mirror._next_anchor(rec), reply))
+        if node:  # kept so `tutor reask` can re-send it (without the reply line)
+            rec.setdefault("last_explain", {})[node] = {
+                "block": blocks.explain_block(body, terms, None),
+                "echo": "\n".join([f"{t['term']}: {t['definition']}" for t in terms] + [body]),
+                "setup": is_setup, "at": now_iso()}
         if reply:
             rec["reply_due"] = None
         # The learner reads the terminal or a phone as much as the note: the same
@@ -929,6 +991,10 @@ def main(argv=None):
                    help="a short setup before a later prediction on a node that already had one")
     p.add_argument("--file")
     p.set_defaults(fn=cmd_explain)
+    p = sub.add_parser("reask", help="re-send a question suspended at a resume, after the review")
+    p.add_argument("--reply", help="your reaction to the learner's last answer (the review)")
+    p.add_argument("--without-setup", action="store_true")
+    p.set_defaults(fn=cmd_reask)
     p = sub.add_parser("plan")
     p.add_argument("--mermaid")
     p.add_argument("--file")

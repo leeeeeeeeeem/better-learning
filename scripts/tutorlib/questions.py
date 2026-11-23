@@ -89,6 +89,36 @@ def _phase_fields(rec: dict, spec: dict, tool: str) -> dict:
     return {"phase": rec["phase"], "type": qtype, "nodeId": node}
 
 
+def suspended(rec: dict) -> dict | None:
+    qid = rec.get("suspended_qid")
+    return next((q for q in rec["questions"] if q["qid"] == qid and q["status"] == "suspended"), None)
+
+
+def suspend_open(rec: dict) -> dict | None:
+    """At a resume: an unanswered question waits until after the review."""
+    q = open_question(rec)
+    if q is None or q.get("phase") == "probe" or q.get("type") == "review":
+        return None
+    unanswered = (q["tool"] == "quiz" and q["status"] in ("committed", "asked")) or \
+                 (q["tool"] == "recall" and q["status"] == "asked" and not q.get("candidates"))
+    if not unanswered:
+        return None
+    q["suspended_from"] = q["status"]
+    q["status"] = "suspended"
+    rec["suspended_qid"] = q["qid"]
+    return q
+
+
+def unsuspend(rec: dict, q: dict) -> None:
+    q["status"] = q.pop("suspended_from", "committed" if q["tool"] == "quiz" else "asked")
+    rec["suspended_qid"] = None
+
+
+def reask_hint(rec: dict) -> str:
+    return ("[tutor] Next: run `tutor.py reask --reply \"<your reaction to the review>\"`. It re-sends the setup "
+            "and the suspended question, with the same answer key.")
+
+
 def current_node(rec: dict) -> str | None:
     ids = {n["id"] for n in (rec.get("plan") or {}).get("nodes", [])}
     tags = [t for t in rec.get("tags", []) if t in ids]
@@ -100,6 +130,12 @@ def require_no_review_due(rec: dict, fields: dict, tool: str) -> None:
     other question; every few nodes, before the next node starts."""
     if fields["phase"] == "probe" or fields["type"] == "review":
         return
+    sus = suspended(rec)
+    if sus is not None:
+        why = reviewlib.due(rec)
+        raise TutorError(f"{tool}: refused, question {sus['qid']} was suspended at the resume. "
+                         + ("The review comes first.\n" + reviewlib.describe(rec, why) if why else
+                            "Re-send it instead of a new question.\n" + reask_hint(rec)))
     why = reviewlib.due(rec)
     if why is None:
         return
@@ -408,7 +444,10 @@ def check_advice(rec: dict, q: dict) -> str:
     if not node or q.get("phase") == "probe":
         return ""
     if q.get("type") == "review":
-        return reviewlib.after_grade(rec, q)
+        advice = reviewlib.after_grade(rec, q)
+        if suspended(rec) is not None and reviewlib.due(rec) is None:
+            advice += "\n" + reask_hint(rec) + " Do not write a separate explanation first: put the reaction in --reply."
+        return advice
     if q.get("type") == "predict":
         reasons = _importance(rec, node)
         # Low confidence is normal on a prediction (it's a guess about something

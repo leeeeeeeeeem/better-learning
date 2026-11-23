@@ -469,6 +469,36 @@ class ReviewTests(unittest.TestCase):
         self.v.answer_quiz("It applies")
         self.v.cli("explain", "--node", "c", stdin=self.setup_c)
 
+    def test_resume_puts_the_review_before_the_open_prediction_then_resends_it(self):
+        self.v.cli("quiz", stdin=review("a"))
+        self.v.answer_quiz("It applies")
+        self.v.cli("explain", "--node", "c", stdin=self.setup_c)
+        self.v.cli("quiz", stdin={"type": "predict", "nodeId": "c", "uses": ["c idea"],
+                                  "question": "What is true of the c idea?", "options": ["It holds", "It fails"],
+                                  "correct": "It holds", "explanation": "x"})
+        predict_qid = questions.open_question(self.v.record())["qid"]
+        # the conversation ends here, unanswered; a new one resumes
+        out = self.v.cli("session", "resume", self.v.record()["id"]).stdout
+        self.assertIn("Suspended question", out)
+        self.assertIsNone(questions.open_question(self.v.record()))
+        self.v.cli("quiz", stdin=review("b"))  # the review comes first
+        self.v.answer_quiz("It applies")
+        p = self.v.cli("quiz", stdin={"type": "predict", "nodeId": "c", "uses": ["c idea"], "question": "Another?",
+                                      "options": ["x", "y"], "correct": "x", "explanation": "x"}, ok=False)
+        self.assertIn("suspended", p.stderr)
+        self.assertIn("--reply", self.v.cli("reask", ok=False).stderr)
+        out = self.v.cli("reask", "--reply", "Right: the b idea carries over.").stdout
+        self.assertIn("AskUserQuestion", out)
+        self.assertEqual(questions.open_question(self.v.record())["qid"], predict_qid)  # same question, same key
+        self.v.answer_quiz("It holds")
+        note = self.v.note()
+        review_at = note.rindex("[!question] Review")
+        self.assertLess(review_at, note.rindex("Right: the b idea carries over."))
+        self.assertLess(note.rindex("Right: the b idea carries over."), note.rindex("what holds for the c idea"))
+        self.assertLess(note.rindex("what holds for the c idea"), note.rindex("[!question] Predict"))
+        graded = next(q for q in self.v.record()["questions"] if q["qid"] == predict_qid)
+        self.assertEqual(graded["result"]["status"], "correct")
+
     def test_session_end_needs_a_review_or_pause(self):
         self.assertIn("before the session ends", self.v.cli("session", "end", ok=False).stderr)
         self.v.cli("session", "end", "--pause")
