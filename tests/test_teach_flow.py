@@ -286,6 +286,55 @@ class MirrorTests(unittest.TestCase):
         self.assertEqual(note.count("## LoRA"), 1)
 
 
+    def _transcript(self, v):
+        transcript = v.dir / "transcript.jsonl"
+        transcript.write_text("")
+        v.hook({"hook_event_name": "Stop", "transcript_path": str(transcript)})
+
+        def add(entry):
+            with open(transcript, "a") as fh:
+                fh.write(json.dumps(entry) + "\n")
+        return add
+
+    def test_prose_in_the_same_step_as_a_question_lands_above_it(self):
+        # The resume case: "Session resumed ..." and the re-asked question in one step.
+        v = Vault()
+        v.to_teach_phase()
+        add = self._transcript(v)
+        v.cli("quiz", stdin=PREDICT)
+        q = questions.open_question(v.record())
+        v.answer_quiz("The pretrained function")  # PreToolUse writes the question, PostToolUse the verdict
+        add({"type": "assistant", "message": {"id": "m9", "role": "assistant", "content": [
+            {"type": "text", "text": "Session resumed at the open prediction."},
+            {"type": "tool_use", "id": q["qid"], "name": "AskUserQuestion", "input": questions.ask_payload(q)}]}})
+        v.cli("flush")
+        note = v.note()
+        self.assertLess(note.index("Session resumed at the open prediction."), note.index("[!question] Predict"))
+        self.assertLess(note.index("[!question] Predict"), note.rindex("Correct ✓"))
+
+    def test_intro_line_before_an_open_question_lands_above_it(self):
+        # "Correct at 95%. Here's a follow-up:" + the chat copy of the open question.
+        v = Vault()
+        v.to_teach_phase()
+        add = self._transcript(v)
+        v.cli("quiz", stdin=PREDICT)
+        v.answer_quiz("The pretrained function")
+        v.cli("explain", "--node", "lora", stdin="reply: Correct.\n" + EXPLAIN_LORA)
+        question = "Why does LoRA start as the pretrained layer?"
+        out = v.cli("recall", stdin={"type": "check", "nodeId": "lora", "uses": ["LoRA"], "question": question,
+                                     "answer": "Because $BA = 0$ at initialisation."}).stdout
+        markers = " ".join(m for m in out.split() if m.startswith("\u27e6"))
+        add({"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "r1", "content": f"(note markers, ignore: {markers})"}]}})
+        v.cli("flush")  # places the queued check block
+        add({"type": "assistant", "message": {"id": "m10", "role": "assistant", "content": [
+            {"type": "text", "text": f"Correct at 95%. Here's a follow-up to answer in the chat:\n\n{question}"}]}})
+        v.cli("flush")
+        note = v.note()
+        self.assertLess(note.index("Here's a follow-up"), note.index("[!question] Check"))
+        self.assertEqual(note.count(question), 1)  # the chat copy is not repeated in the note
+
+
 class GuardTests(unittest.TestCase):
     def setUp(self):
         self.v = Vault()

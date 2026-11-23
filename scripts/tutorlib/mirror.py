@@ -38,6 +38,35 @@ def queue_block(rec: dict, block: str, echo: str | None = None) -> str:
     return token
 
 
+def _remember_anchor_block(rec: dict, key: str, block: str) -> None:
+    """Blocks that prose written in the same step can only reach the note after:
+    an AskUserQuestion (logged by PreToolUse before the step is in the
+    transcript) and an open question whose chat copy carries an intro line.
+    Kept so that late prose can be inserted above them (insert_before)."""
+    anchors = rec.setdefault("anchor_blocks", {})
+    anchors[key] = block
+    for k in list(anchors)[:-8]:
+        del anchors[k]
+
+
+def insert_before(note: Path, anchor_block: str | None, text: str, out: list[str]) -> None:
+    """Put `text` right above `anchor_block`: in this flush's pending output if
+    the block is there, else in the note file. Falls back to appending."""
+    if anchor_block:
+        if anchor_block in out:
+            out.insert(out.index(anchor_block), text)
+            return
+        try:
+            current = note.read_text()
+        except OSError:
+            current = ""
+        i = current.rfind(anchor_block.rstrip("\n"))
+        if i >= 0:
+            note.write_text(current[:i] + text.rstrip("\n") + "\n\n" + current[i:])
+            return
+    out.append(text)
+
+
 def place_pending(vault: Path, rec: dict) -> int:
     """Fallback: append queued blocks whose marker never showed up (e.g. the
     turn ended). Called at end of turn and before a new user message."""
@@ -46,6 +75,7 @@ def place_pending(vault: Path, rec: dict) -> int:
         append_note(note_abspath(vault, rec), item["block"])
         if item.get("echo"):
             rec["echo"] = item["echo"]
+            _remember_anchor_block(rec, "echo", item["block"])
     rec["pending_blocks"] = []
     return len(pending)
 
@@ -77,8 +107,11 @@ def log_ask_question(rec: dict, tool_use_id: str, tool_input: dict) -> str | Non
     if quiz is not None:
         quiz["status"] = "asked"
         quiz["tool_use_id"] = tool_use_id
-        return blocks.quiz_question_block(quiz)
-    return blocks.ask_question_block(qs)
+        block = blocks.quiz_question_block(quiz)
+    else:
+        block = blocks.ask_question_block(qs)
+    _remember_anchor_block(rec, tool_use_id, block)
+    return block
 
 
 def log_ask_answer(rec: dict, tool_use_id: str, tool_input: dict, tool_response) -> tuple[str | None, str | None]:
@@ -124,17 +157,30 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
     pending_text: list[str] = []
     seen_msg_text: set = set()
 
-    def emit_text():
+    def emit_text(before: str | None = None):
+        """`before`: a block already written that this prose was meant to precede."""
         if pending_text:
             text = "\n\n".join(pending_text)
+            pending_text.clear()
             echo = rec.get("echo")
             if echo and echo.strip() in text:
-                text = text.replace(echo.strip(), "", 1).strip()
+                # The chat copy of an open question: drop it, and put the line
+                # that introduced it above the question block, where it belongs.
+                intro, _, rest = text.partition(echo.strip())
                 rec["echo"] = None
-            pending_text.clear()
+                intro, rest = intro.strip(), rest.strip()
+                if intro:
+                    insert_before(note, (rec.get("anchor_blocks") or {}).get("echo"),
+                                  blocks.assistant_block(intro, _next_anchor(rec)), out)
+                    rec["prose_since_answer"] = rec.get("prose_since_answer", 0) + len(intro)
+                text = rest
             if not text:
                 return
-            out.append(blocks.assistant_block(text, _next_anchor(rec)))
+            block = blocks.assistant_block(text, _next_anchor(rec))
+            if before:
+                insert_before(note, before, block, out)
+            else:
+                out.append(block)
             # Explanation written since the last answered question (gates checks).
             rec["prose_since_answer"] = rec.get("prose_since_answer", 0) + len(text)
 
@@ -149,6 +195,7 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
                 out.append(item["block"])
                 if item.get("echo"):
                     rec["echo"] = item["echo"]
+                    _remember_anchor_block(rec, "echo", item["block"])
             else:
                 keep.append(item)
         rec["pending_blocks"] = keep
@@ -174,8 +221,14 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
                     seen_msg_text.add(key)
                     pending_text.append(c["text"].strip())
                 elif c.get("type") == "tool_use" and c.get("name") == ASK_TOOL:
+                    tid = c.get("id", "")
+                    if tid in rec["logged_tool_ids"]:
+                        # PreToolUse already wrote this question (and maybe its
+                        # verdict): prose from the same step goes above it.
+                        emit_text(before=(rec.get("anchor_blocks") or {}).get(tid))
+                        continue
                     emit_text()
-                    block = log_ask_question(rec, c.get("id", ""), c.get("input") or {})
+                    block = log_ask_question(rec, tid, c.get("input") or {})
                     if block:
                         out.append(block)
         elif etype == "user":
