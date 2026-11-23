@@ -24,6 +24,7 @@ import random
 import re
 
 from . import blocks
+from . import review as reviewlib
 from . import terms as termslib
 from .unimath import to_unicode
 from . import plan as planlib
@@ -61,9 +62,10 @@ def _phase_fields(rec: dict, spec: dict, tool: str) -> dict:
             raise TutorError("Probe questions do not take `type` or `nodeId`. The session has no plan yet.")
         return {"phase": "probe", "type": None, "nodeId": None}
     qtype = spec.get("type")
-    if qtype not in ("predict", "check"):
+    if qtype not in ("predict", "check", "review"):
         raise TutorError(
-            f"{tool}: `type` is missing. Use \"predict\" before you teach the step. Use \"check\" after you teach the step."
+            f"{tool}: `type` is missing. Use \"predict\" before you teach the step, \"check\" after you teach the "
+            "step, and \"review\" for a review question on an earlier, completed node."
         )
     node = spec.get("nodeId")
     plan = rec.get("plan")
@@ -79,7 +81,42 @@ def _phase_fields(rec: dict, spec: dict, tool: str) -> dict:
             f"{tool}: the session has no plan yet. To ask now, remove `nodeId`. "
             "To tag the question, write the plan with `tutor.py plan` first."
         )
+    if qtype == "review" and node not in reviewlib.completed(rec):
+        raise TutorError(
+            f"{tool}: a review is on a node that was already taught and passed a check. Completed nodes: "
+            + (", ".join(reviewlib.completed(rec)) or "(none yet)") + "."
+        )
     return {"phase": rec["phase"], "type": qtype, "nodeId": node}
+
+
+def current_node(rec: dict) -> str | None:
+    ids = {n["id"] for n in (rec.get("plan") or {}).get("nodes", [])}
+    tags = [t for t in rec.get("tags", []) if t in ids]
+    return tags[-1] if tags else None
+
+
+def require_no_review_due(rec: dict, fields: dict, tool: str) -> None:
+    """Reviews come first: after a resume and after a missed review, before any
+    other question; every few nodes, before the next node starts."""
+    if fields["phase"] == "probe" or fields["type"] == "review":
+        return
+    why = reviewlib.due(rec)
+    if why is None:
+        return
+    if why == "every" and not (fields["type"] == "predict" and fields["nodeId"] != current_node(rec)):
+        return  # finishing the current node is fine; only the next node waits
+    raise TutorError(f"{tool}: refused, a review comes first.\n" + reviewlib.describe(rec, why))
+
+
+def _require_review_repair(rec: dict, fields: dict, tool: str) -> None:
+    """A review on a node whose last review was missed needs a repair first."""
+    if fields["type"] != "review" or reviewlib.open_recheck(rec) != fields["nodeId"]:
+        return
+    if fields["nodeId"] not in (rec.get("explained_since_answer") or []):
+        raise TutorError(
+            f"{tool}: the last review on `{fields['nodeId']}` was missed. Repair it first with "
+            f"`tutor.py explain --node {fields['nodeId']}`, then ask the review again from a different angle."
+        )
 
 
 def _require_prediction(rec: dict, fields: dict, tool: str) -> None:
@@ -152,6 +189,8 @@ def commit_quiz(rec: dict, spec: dict, min_chars: int = 400, prior: list | None 
         raise TutorError(f"quiz: each correct answer must be the exact text of one option. These do not match: {missing}.")
     multi = bool(spec.get("multiSelect")) or len(correct) > 1
     fields = _phase_fields(rec, spec, "quiz")
+    require_no_review_due(rec, fields, "quiz")
+    _require_review_repair(rec, fields, "quiz")
     _require_prediction(rec, fields, "quiz")
     _require_explanation(rec, fields, "quiz", min_chars)
     uses = _check_terms(rec, spec, fields, "quiz", prior)
@@ -175,16 +214,23 @@ def commit_quiz(rec: dict, spec: dict, min_chars: int = 400, prior: list | None 
         "created": now_iso(),
     }
     rec["questions"].append(q)
-    if fields["nodeId"]:
+    _after_commit(rec, fields)
+    return q, ask_payload(q)
+
+
+def _after_commit(rec: dict, fields: dict) -> None:
+    """A review doesn't move the learner's position on the map."""
+    if fields["type"] == "review":
+        rec["review_resume_due"] = False
+    elif fields["nodeId"]:
         rec["tags"].append(fields["nodeId"])
         rec["phase"] = "teach"
-    return q, ask_payload(q)
 
 
 def _header(q: dict) -> str:
     if q["phase"] == "probe":
         return "Probe"
-    return "Predict" if q["type"] == "predict" else "Check"
+    return {"predict": "Predict", "review": "Review"}.get(q["type"], "Check")
 
 
 def ask_payload(q: dict) -> dict:
@@ -259,7 +305,7 @@ def match_quiz(rec: dict, questions: list[dict]) -> dict | None:
             payload_q = ask_payload(q)["questions"][0]["question"]
             if first.get("question", "").strip() == payload_q.strip():
                 return q
-            if first.get("header") in ("Probe", "Predict", "Check", "Quiz"):
+            if first.get("header") in ("Probe", "Predict", "Check", "Review", "Quiz"):
                 return q
     return None
 
@@ -361,6 +407,8 @@ def check_advice(rec: dict, q: dict) -> str:
     node = q.get("nodeId")
     if not node or q.get("phase") == "probe":
         return ""
+    if q.get("type") == "review":
+        return reviewlib.after_grade(rec, q)
     if q.get("type") == "predict":
         reasons = _importance(rec, node)
         # Low confidence is normal on a prediction (it's a guess about something
@@ -396,13 +444,20 @@ def check_advice(rec: dict, q: dict) -> str:
         if weak:
             return (f"[tutor] Node `{node}` had {len(checks)} checks and {weak}. Do not add another check. "
                     "If you are still unsure, repair the node, then check again.")
-        return f"[tutor] Next: the prediction for the next node."
+        return _next_node(rec)
     if len(checks) < suggested or weak:
         why = weak or "the suggestion for this node was two checks"
         other = ("make it open (`tutor.py recall`), so the learner states the idea in their own words"
                  if q["tool"] == "quiz" else
                  "make it closed, with the confusion you saw as a distractor, or open on a different angle")
         return f"[tutor] Next for node `{node}`: a follow-up check ({why}). The first check was {'closed' if q['tool'] == 'quiz' else 'open'}: {other}."
+    return _next_node(rec)
+
+
+def _next_node(rec: dict) -> str:
+    why = reviewlib.due(rec)
+    if why:
+        return reviewlib.describe(rec, why)
     return "[tutor] Next: the prediction for the next node."
 
 
@@ -416,6 +471,8 @@ def commit_recall(rec: dict, spec: dict, min_chars: int = 400, prior: list | Non
         if not spec.get(field):
             raise TutorError(f"recall: `{field}` is missing. `answer` is your full committed answer, with the reasoning.")
     fields = _phase_fields(rec, spec, "recall")
+    require_no_review_due(rec, fields, "recall")
+    _require_review_repair(rec, fields, "recall")
     _require_prediction(rec, fields, "recall")
     _require_explanation(rec, fields, "recall", min_chars)
     uses = _check_terms(rec, spec, fields, "recall", prior)
@@ -431,9 +488,7 @@ def commit_recall(rec: dict, spec: dict, min_chars: int = 400, prior: list | Non
         "created": now_iso(),
     }
     rec["questions"].append(q)
-    if fields["nodeId"]:
-        rec["tags"].append(fields["nodeId"])
-        rec["phase"] = "teach"
+    _after_commit(rec, fields)
     return q
 
 

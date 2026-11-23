@@ -23,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tutorlib import blocks, graph, mirror, plan, questions  # noqa: E402
+from tutorlib import review as reviewlib  # noqa: E402
 from tutorlib import terms as termslib  # noqa: E402
 from tutorlib.vault import (  # noqa: E402
     TutorError,
@@ -111,6 +112,7 @@ class Session:
         self.rec = require_bound(self.vault)
         self.sid = current_sid()
         self.tokens: list[str] = []
+        self.rec["review_every"] = int(load_config(self.vault).get("review_every_nodes", 2))
         mirror.flush(self.vault, self.rec, self.sid)
         # Persist the mirror's progress now: if the command is then refused, the
         # record is not saved at exit, and the next flush would write the same
@@ -294,6 +296,8 @@ def cmd_session_resume(args):
         if sid not in rec["claude_sessions"]:
             rec["claude_sessions"].append(sid)
         bind(vault, sid, rec["id"])
+        if rec["kind"] == "teach" and reviewlib.completed(rec):
+            rec["review_resume_due"] = True  # the first question after a break is a review
         append_note(note_abspath(vault, rec), blocks.note_block(f"Resumed {now_iso()[:16].replace('T', ' ')}"))
         _start_mirror(vault, sid, rec)
         save_record(vault, rec)
@@ -334,6 +338,9 @@ def cmd_session_resume(args):
             r = q.get("result") or {}
             print(f"  {q['qid']} {q['tool']} {q.get('type') or ''} {q.get('nodeId') or ''}: "
                   f"{q['question'][:90]!r} → {r.get('status') or r.get('verdict') or q['status']}")
+    if rec.get("review_resume_due"):
+        print("\n" + reviewlib.describe(rec, "resume")
+              + "\nIf a question is still open, the learner answers it first; the review comes right after.")
     print("\nThe full history is in the note. Read the note before you continue, to update your model of the learner.")
     if rec["kind"] == "teach":
         print_reads(rec["phase"])
@@ -348,6 +355,8 @@ def cmd_session_end(args):
             print("No session is bound to this conversation.")
             return
         rec = load_record(vault, rid)
+        if not getattr(args, "pause", False) and reviewlib.end_due(rec):
+            raise TutorError("session end: refused.\n" + reviewlib.describe(rec, "end"))
         mirror.flush(vault, rec, sid)
         mirror.place_pending(vault, rec)
         append_note(note_abspath(vault, rec), blocks.note_block(f"Session paused/ended {now_iso()[:16].replace('T', ' ')}"))
@@ -583,6 +592,10 @@ def cmd_explain(args):
             raise TutorError("explain: --setup needs --node (the node whose prediction it prepares).")
         is_setup = bool(node) and (args.setup or not any(
             q.get("nodeId") == node and q.get("type") == "predict" for q in rec["questions"]))
+        why = reviewlib.due(rec)
+        if is_setup and why and (why != "every" or node != questions.current_node(rec)):
+            raise TutorError("explain: refused, a review comes first (a setup starts the next question).\n"
+                             + reviewlib.describe(rec, why))
         if is_setup:
             cap = int(load_config(s.vault).get("max_setup_chars", 900))
             n = _setup_prose_chars(body)
@@ -893,7 +906,9 @@ def main(argv=None):
     p = ps.add_parser("resume")
     p.add_argument("ref")
     p.set_defaults(fn=cmd_session_resume)
-    ps.add_parser("end").set_defaults(fn=cmd_session_end)
+    p = ps.add_parser("end")
+    p.add_argument("--pause", action="store_true", help="only pausing: skip the end-of-session review")
+    p.set_defaults(fn=cmd_session_end)
     ps.add_parser("list").set_defaults(fn=cmd_session_list)
 
     pl = sub.add_parser("log").add_subparsers(dest="lcmd", required=True)

@@ -71,7 +71,7 @@ class Vault:
                          "tool_response": {"answers": {qtext: pick, questions.CONFIDENCE_QUESTION: "75%"}}})
         return out
 
-    def to_teach_phase(self):
+    def to_teach_phase(self, plan='graph TD\n  lora["LoRA update"] --> count["Parameter count"]'):
         self.cli("session", "start", "--kind", "teach", "--title", "LoRA test")
         self.cli("quiz", stdin={"question": "For $h = Wx$, what is the gradient with respect to $W$?",
                                 "options": ["$g x^\\top$", "$W^\\top g$"], "correct": "$g x^\\top$",
@@ -79,7 +79,7 @@ class Vault:
         self.answer_quiz("$g x^\\top$")
         self.cli("probe-done", stdin={"goal": "g", "strands": [{"strand": "grad", "assessment": "ok"}],
                                       "held": [{"term": "gradient", "evidence": "q1"}, "$W$"]})
-        self.cli("plan", "--mermaid", 'graph TD\n  lora["LoRA update"] --> count["Parameter count"]')
+        self.cli("plan", "--mermaid", plan)
 
 
 EXPLAIN_LORA = """terms:
@@ -400,6 +400,78 @@ class ChatCopyTests(unittest.TestCase):
         self.assertIn("still open", out)
         self.assertEqual(questions.open_question(self.v.record())["qid"], q["qid"])
         self.assertIn("Correct ✓", self.v.answer_quiz("$2dr$") and self.v.note())  # the re-asked dialog grades
+
+
+ABC = 'graph TD\n  a["Node A"] --> b["Node B"]\n  b --> c["Node C"]'
+
+
+def run_node(v, n):
+    """A whole node: setup, prediction, explanation, passed check."""
+    v.cli("explain", "--node", n, stdin=f"reply: Noted.\nterms:\n- {n} idea :: the idea that node {n} teaches\n"
+                                         f"uses: gradient\n---\nThe next question asks what holds for the {n} idea.")
+    v.cli("quiz", stdin={"type": "predict", "nodeId": n, "uses": [f"{n} idea"],
+                         "question": f"What is true of the {n} idea?", "options": ["It holds", "It fails"],
+                         "correct": "It holds", "explanation": "x"})
+    v.answer_quiz("It holds")
+    v.cli("explain", "--node", n, stdin=f"reply: Correct.\nuses: {n} idea\n---\n## The {n} idea\n\n"
+                                         f"The {n} idea holds, by the gradient argument made here in full.")
+    v.cli("quiz", stdin={"type": "check", "nodeId": n, "uses": [f"{n} idea"],
+                         "question": f"Does the {n} idea hold in a new case?", "options": ["Yes", "No"],
+                         "correct": "Yes", "explanation": "x"})
+    v.answer_quiz("Yes")
+
+
+def review(n, **kw):
+    return {"type": "review", "nodeId": n, "uses": [f"{n} idea"], "question": f"In a later setting, does the {n} idea apply?",
+            "options": ["It applies", "It does not"], "correct": "It applies", "explanation": "x", **kw}
+
+
+class ReviewTests(unittest.TestCase):
+    def setUp(self):
+        self.v = Vault()
+        self.v.to_teach_phase(ABC)
+        run_node(self.v, "a")
+        run_node(self.v, "b")
+        self.setup_c = ("reply: Noted.\nterms:\n- c idea :: the idea that node c teaches\nuses: gradient\n---\n"
+                        "The next question asks what holds for the c idea.")
+
+    def test_review_every_two_nodes_before_the_next_node(self):
+        p = self.v.cli("explain", "--node", "c", stdin=self.setup_c, ok=False)
+        self.assertIn("review comes first", p.stderr)
+        self.assertIn("- a (", p.stderr)  # candidates exclude the node just finished
+        self.v.cli("quiz", stdin=review("a"))
+        self.assertEqual(questions.current_node(self.v.record()), "b")  # a review does not move the map
+        self.v.answer_quiz("It applies")
+        self.assertIn("[!question] Review", self.v.note())
+        self.v.cli("explain", "--node", "c", stdin=self.setup_c)
+
+    def test_review_only_on_completed_nodes(self):
+        p = self.v.cli("quiz", stdin=review("c"), ok=False)
+        self.assertIn("Completed nodes", p.stderr)
+
+    def test_missed_review_is_repaired_and_rechecked(self):
+        self.v.cli("quiz", stdin=review("a"))
+        self.v.answer_quiz("It does not")
+        self.assertIn("review comes first", self.v.cli("explain", "--node", "c", stdin=self.setup_c, ok=False).stderr)
+        self.assertIn("Repair it first", self.v.cli("quiz", stdin=review("a"), ok=False).stderr)
+        self.v.cli("explain", "--node", "a", stdin="reply: Not quite.\nuses: a idea\n---\n"
+                                                   "Take the smallest case: the a idea with one input, worked through.")
+        self.v.cli("quiz", stdin=review("a", question="With a single input, does the a idea apply?"))
+        self.v.answer_quiz("It applies")
+        self.v.cli("explain", "--node", "c", stdin=self.setup_c)
+
+    def test_first_question_after_resume_is_a_review(self):
+        self.v.cli("quiz", stdin=review("a"))
+        self.v.answer_quiz("It applies")
+        self.v.cli("session", "resume", self.v.record()["id"])
+        self.assertIn("review comes first", self.v.cli("explain", "--node", "c", stdin=self.setup_c, ok=False).stderr)
+        self.v.cli("quiz", stdin=review("b"))
+        self.v.answer_quiz("It applies")
+        self.v.cli("explain", "--node", "c", stdin=self.setup_c)
+
+    def test_session_end_needs_a_review_or_pause(self):
+        self.assertIn("before the session ends", self.v.cli("session", "end", ok=False).stderr)
+        self.v.cli("session", "end", "--pause")
 
 
 class GuardTests(unittest.TestCase):

@@ -70,6 +70,8 @@ def _q_title(q: dict) -> str:
         return "Check"
     if q.get("type") == "predict":
         return "Predict"
+    if q.get("type") == "review":
+        return "Review"
     if q.get("phase") == "probe":
         return "Probe"
     return "Question"
