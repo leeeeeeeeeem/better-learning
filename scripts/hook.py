@@ -216,9 +216,10 @@ def handle(payload: dict):
                 append_note(note, block)
                 rec["prose_since_answer"] = 0
                 rec["explained_since_answer"] = []
-                if ctx:  # a graded quiz: the next explanation opens with the reaction to it
-                    rec["reply_due"] = next((q["qid"] for q in reversed(rec["questions"])
-                                             if q.get("tool_use_id") == tid), None)
+                graded = next((q for q in reversed(rec["questions"]) if q.get("tool_use_id") == tid), None)
+                if ctx and graded and graded.get("phase") != "probe":
+                    # a graded teach-phase quiz: the next explanation opens with the reaction to it
+                    rec["reply_due"] = graded["qid"]
             if ctx and rec.get("plan_note"):
                 from tutorlib import plan
 

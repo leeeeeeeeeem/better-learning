@@ -427,6 +427,7 @@ def cmd_probe_done(args):
             termslib.register(rec, [e], "probe", evidence=e.get("evidence"))
         rec["probe"] = {"goal": spec.get("goal"), "summary": spec.get("summary"), "strands": strands,
                         "held": [e["term"] for e in entries], "at": now_iso()}
+        rec["reply_due"] = None
         rec["phase"] = "plan"
         s.append(blocks.probe_block(rec["probe"]))
     print("Probe concluded. The note shows the assessment.")
