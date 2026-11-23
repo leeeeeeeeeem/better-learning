@@ -29,13 +29,21 @@ The task gives you the source path, a title, and the CLI (`python3 .../tutor.py`
 
 ## 2. Extract
 
-Your goal is to find the CORE IDEAS of the source and to show how the other ideas derive from the foundations. The source teaches by argument: it derives ideas from other ideas, down to a foundation. Your result has two parts: the core ideas, and the chains of reasoning that derive them.
+The goal depends on the type of source.
+
+**Session note.** Find the CORE IDEAS of the source and show how the other ideas derive from the foundations. A session teaches by argument: it derives ideas from other ideas, down to a foundation. Your result has two parts: the core ideas, and the chains of reasoning that derive them.
+
+**Notes file.** Bring the knowledge in the notes into the graph. Notes can contain definitions, formulas, facts, arguments, or outlines, and they do not have to be a complete lesson. Your result is a useful record of this material. It is not a reconstruction of the subject from its foundations.
 
 **Chains.** The premises of a chain must together entail the conclusion. Entailment is the only relation that makes a chain. If the connection between two ideas is only historical or narrative (who argued what, the order of an explanation), do not make a chain. Keep the ideas as separate propositions, or drop them. The graph goes upward: foundational ideas at the bottom, derived ideas above them. Each chain shows how its conclusion follows from more established ideas.
 
 **Truth.** The graph holds only true ideas about the subject. It holds nothing about the learner, the teacher, or this source. Write "X", not "the learner understands X". If the source corrects a misconception, write the correct idea. Each statement is one self-contained idea at full precision. Write math in LaTeX (`$...$`).
 
-**Selection.** Extract the load-bearing ideas: what a reference book on the subject would teach. Do not extract every sentence of the source. An idea qualifies only when an argument in the source depends on it. Examples, explanations of notation, and restatements that no argument needs are not core ideas. Every idea must make sense to a reader who never saw the source. A name or statement must not depend on the structure of the source (claim numbers, plan-node labels).
+**Selection in a session note.** Extract the load-bearing ideas: what a reference book on the subject would teach. Do not extract every sentence of the source. An idea qualifies only when an argument in the source depends on it. Examples, explanations of notation, and restatements that no argument needs are not core ideas.
+
+**Selection in a notes file.** Keep the meaningful definitions, formulas, claims, and explanations, also the ideas that have no derivation. Make a chain only for reasoning that the notes give, or for a direct inference from a relation that the notes state. A sketch does not have to show every step. But a topic outline or a list of dependencies between components is not a derivation. When the notes only state an idea, record it as a proposition. Do not construct an argument for it. Keep enough detail to preserve the knowledge, but do not expand the notes into a full treatment of the subject.
+
+**In all sources**, every idea must make sense to a reader who never saw the source. A name or statement must not depend on the structure of the source (claim numbers, plan-node labels).
 
 **Continuing.** If the digest is not empty:
 - Refer to an existing idea by its id (`n_…`). Do not state it again.
