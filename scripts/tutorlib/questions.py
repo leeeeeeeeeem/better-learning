@@ -104,6 +104,8 @@ def suspend_open(rec: dict) -> dict | None:
     if not unanswered:
         return None
     q["suspended_from"] = q["status"]
+    q["suspended_at"] = now_iso()
+    q["suspended_seq"] = rec.get("explain_seq", 0)  # explanations written after this are "fresh"
     q["status"] = "suspended"
     rec["suspended_qid"] = q["qid"]
     return q

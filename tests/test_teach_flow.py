@@ -499,6 +499,27 @@ class ReviewTests(unittest.TestCase):
         graded = next(q for q in self.v.record()["questions"] if q["qid"] == predict_qid)
         self.assertEqual(graded["result"]["status"], "correct")
 
+    def test_reask_without_a_stored_setup_uses_a_fresh_one_once(self):
+        # A question asked before setups were stored (an old record): the setup is written again once.
+        self.v.cli("quiz", stdin=review("a"))
+        self.v.answer_quiz("It applies")
+        self.v.cli("explain", "--node", "c", stdin=self.setup_c)
+        self.v.cli("quiz", stdin={"type": "predict", "nodeId": "c", "uses": ["c idea"],
+                                  "question": "What is true of the c idea?", "options": ["It holds", "It fails"],
+                                  "correct": "It holds", "explanation": "x"})
+        rec_path = next((self.v.dir / ".tutor" / "sessions").iterdir())
+        rec = json.loads(rec_path.read_text())
+        rec.pop("last_explain")  # as in a record from before this change
+        rec_path.write_text(json.dumps(rec))
+        self.v.cli("session", "resume", rec["id"])
+        self.v.cli("quiz", stdin=review("b"))
+        self.v.answer_quiz("It applies")
+        self.assertIn("--setup", self.v.cli("reask", "--reply", "Right.", ok=False).stderr)
+        self.v.cli("explain", "--node", "c", "--setup",
+                   stdin="reply: Right.\nuses: c idea\n---\nAgain: the next question asks what holds for the c idea.")
+        self.v.cli("reask")
+        self.assertEqual(self.v.note().count("Again: the next question asks"), 1)
+
     def test_session_end_needs_a_review_or_pause(self):
         self.assertIn("before the session ends", self.v.cli("session", "end", ok=False).stderr)
         self.v.cli("session", "end", "--pause")

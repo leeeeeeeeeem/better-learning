@@ -495,11 +495,16 @@ def cmd_reask(args):
             raise TutorError(f"reask: the learner's answer to {rec['reply_due']} has no reaction yet. Pass "
                              "--reply \"<your reaction>\": it is shown first, before the re-sent setup.")
         stored = (rec.get("last_explain") or {}).get(q.get("nodeId"))
-        if stored is None and not args.without_setup:
+        if stored and stored.get("seq", 0) > q.get("suspended_seq", 0):
+            stored, fresh = None, True  # written again after the resume: already in the note and the chat
+        else:
+            fresh = False
+        if stored is None and not fresh and not args.without_setup:
             raise TutorError(
                 f"reask: no stored setup for node `{q.get('nodeId')}` (it was written before reask existed). Write it "
-                f"again with `tutor.py explain --node {q.get('nodeId')} --setup` (the same terms and situation as "
-                "before, short), then run reask again. If the question needs no setup, pass --without-setup.")
+                f"again with `tutor.py explain --node {q.get('nodeId')} --setup` (a `reply:` line with your reaction "
+                "to the review, then the same terms and situation as before, short), then run reask again without "
+                "--reply. If the question needs no setup, pass --without-setup.")
         parts, echo = [], []
         if args.reply:
             parts.append(blocks.dedash(args.reply.strip()))
@@ -685,8 +690,9 @@ def cmd_explain(args):
         # Queued like every CLI block: it lands right after whatever was written
         # before this command (prose, grades), never above it.
         s.append(blocks.explain_block(body, terms, mirror._next_anchor(rec), reply))
+        rec["explain_seq"] = rec.get("explain_seq", 0) + 1
         if node:  # kept so `tutor reask` can re-send it (without the reply line)
-            rec.setdefault("last_explain", {})[node] = {
+            rec.setdefault("last_explain", {})[node] = {"seq": rec["explain_seq"],
                 "block": blocks.explain_block(body, terms, None),
                 "echo": "\n".join([f"{t['term']}: {t['definition']}" for t in terms] + [body]),
                 "setup": is_setup, "at": now_iso()}
