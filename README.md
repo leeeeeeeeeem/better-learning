@@ -76,6 +76,7 @@ These go beyond porting. They reflect how I learn best, and you may want to chan
 **Teaching loop**
 
 - Every node of the plan runs predict → explanation → check. The prediction is never skipped, and there is always an explanation between the prediction and the check. Its length depends on the prediction: a compact but complete revision when it was right and confident, a detailed explanation built from the learner's attempt when it was wrong or "I don't know".
+- Before each prediction comes a short **setup**: a New terms box with every term the question uses, and a few sentences on what the question asks, never the answer. The CLI caps a setup's prose and doesn't count it as the node's explanation, so the detailed explanation after your answer is still required.
 - Explanations are written with `tutor explain`, not as chat prose. The CLI refuses a check on a node that had no prediction, and a check with no `tutor explain` block for the node since the last answer. Chat prose and the model's thinking don't count (in early sessions, whole explanations existed only in the model's thinking and never reached the learner).
 - No "ready" turns: the explanation and its check come in the same turn. The Stop hook refuses a turn that ends right after an explanation with no question asked; the question dialog waits while you read the note.
 - Nothing undefined: every term and symbol in an explanation or a teach-phase question must be (a) taught in an explanation, in this session or an earlier one, (b) shown held in the probe (`probe-done` takes a `held` list), or (c) defined in the explanation's `terms:` header. Questions declare the terms they rely on in `uses`; the CLI checks them against a term registry and also scans the text for symbols ($W_{up}$, $\alpha$, `code_names`), and refuses anything undefined. `tutor.py terms list` shows the registry.
@@ -84,6 +85,14 @@ These go beyond porting. They reflect how I learn best, and you may want to chan
 - Asides are not answers: a clarifying question, a "resend that" or a complaint sent while an open question is waiting is answered, and the question stays open.
 - The tutor can't work around its own checks: a guard hook refuses direct writes (Write/Edit, scripts, redirects) to session notes, plan notes and `.tutor/`. Only the CLI and the hooks write there.
 - In the originals, the learner picks one quizzing mechanic (multiple choice or free recall) for the session. Here the agent picks per question: closed (multiple choice, to test recognition) or open (a short question answered in your own words, to test production). A node gets one or two checks, depending on the answer, the stated confidence, the learner's thinking, and how much of the plan depends on the node. Examples: closed then open for an important node; open then closed when the open answer showed a specific gap.
+
+**Probe and graph (synced with LearnHarness 0.7.0, Nov 2026)**
+
+- The probe looks for what would change the plan: short questions where different mental models give different answers, a miss drilled only when the distinction matters for the lesson, and no escalating once the lesson's needs are shown. Untested boundaries are reported as untested and checked during teaching.
+- Confidence is read alongside the reasoning, never as proof on its own.
+- An aside answered while a question is open never gives that question's answer away.
+- Imported notes keep definitions and facts as plain propositions; chains only where the notes actually reason.
+- The graph extractor links findings from a ranked candidate list (`tutor.py graph candidates`) instead of browsing the whole graph.
 
 **Writing**
 

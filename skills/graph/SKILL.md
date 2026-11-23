@@ -29,6 +29,7 @@ Extract after `tutor session end`, or whenever the learner asks. Tell them in on
 tutor graph sessions                 # sources and how many propositions each gave birth to
 tutor graph list [--source <title>]  # propositions, full statements
 tutor graph find "*chain rule*"      # glob over names, statements, aliases
+tutor graph candidates --file f.json # for each new finding, the existing nodes most likely to state the same claim
 tutor graph chains [--node <id>]     # reasoning chains (premises ⇒ conclusion)
 tutor graph show <id|name>           # one node, its chains, its practice history
 tutor graph delete <id>              # remove a wrong node (and chains through it), only when asked
