@@ -56,15 +56,15 @@ The goal depends on the type of source.
 
 Before you merge, check whether each NEW proposition already exists in the graph, from another source:
 
-1. Run `tutor graph sessions` one time. It lists all sources.
-2. Run `tutor graph list --source "<title>"` for each source whose topic can overlap.
-3. Run `tutor graph find "<pattern>"` for other phrasings and synonyms.
+1. Write the findings to a scratch file (`mktemp`), in the format of step 4.
+2. Run `tutor graph candidates --file <file>`. For each new proposition, it lists the existing nodes that most likely state the same claim, ranked by overlap of words in names, statements and aliases (the score is a hint, not a decision). Read each candidate and decide.
+3. Only when a proposition has no good candidate but you think the graph can have it in other words: run `tutor graph find "<pattern>"` for that phrasing or synonym. Do not browse whole sources (`tutor graph list`) unless `candidates` and `find` leave a real doubt.
 
-When an existing node states the same claim, set `"linkTo": "<that n_ id>"` on your proposition. The same claim includes paraphrases, rewordings, compressions, and the same claim at a different precision. Your bias is toward linking: look for correct links, and do not hold back from fear of a wrong link. Keep two propositions separate only when they make different claims. Stop searching when you have seen the likely candidates.
+When an existing node states the same claim, set `"linkTo": "<that n_ id>"` on your proposition. The same claim includes paraphrases, rewordings, compressions, and the same claim at a different precision. Your bias is toward linking: look for correct links, and do not hold back from fear of a wrong link. Keep two propositions separate only when they make different claims. A node with a similar topic but a different claim is not a link. Stop when you have decided each proposition; do not search again for ground you have already seen.
 
 ## 4. Merge
 
-Write the findings to a scratch file (`mktemp`). Then run `tutor graph merge --source "<source path>" --title "<title>" --file <file>`.
+Update the scratch file with your links. Then run `tutor graph merge --source "<source path>" --title "<title>" --file <file>`.
 
 ```json
 {"propositions": [
