@@ -111,6 +111,8 @@ These go beyond porting. They reflect how I learn best, and you may want to chan
 
 - The question dialog doesn't render LaTeX, so quiz questions and options are converted to Unicode there (`√dₖ`, `αᵢⱼ`, `ℝⁿ`). The note keeps the LaTeX.
 - Open questions and practice problems are also sent as chat messages, so they are visible without the note. The note doesn't get a second copy.
+- Explanations and setups are written into the note and then repeated as a chat message, so the session can be followed from the terminal or the phone without telling the tutor where you are. The mirror recognises the copy and keeps it out of the note; a question dialog is refused once while the copy is missing.
+- Closing a question dialog without answering (easy on a phone) leaves the question open; it is asked again, not recorded as cancelled.
 
 ## Files
 

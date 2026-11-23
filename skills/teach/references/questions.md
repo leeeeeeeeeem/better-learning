@@ -64,13 +64,13 @@ EOF
 ```
 
 - Markdown body after the header, LaTeX written plainly (the quoted heredoc keeps single backslashes; this is not JSON).
-- `reply:` is your reaction to their last answer (the verdict in your words, what they got, what is true and why). It is required on the first explanation after any graded answer, and it is shown first, directly under the verdict, before the heading and the **New terms** box. Never put the reaction at the top of the body (it would land under the heading and the terms) or in the chat.
+- `reply:` is your reaction to their last answer (the verdict in your words, what they got, what is true and why). It is required on the first explanation after any graded answer, and it is shown first, directly under the verdict, before the heading and the **New terms** box. Never put the reaction at the top of the body (it would land under the heading and the terms), and never only in the chat.
 - `terms:` defines everything new the body uses, one line each: `- term :: definition`, with the name, its role in words, and its shape for a matrix or tensor. The note shows these first, in a **New terms** box. A symbol defined only by its shape is not defined.
 - `uses:` lists what the body relies on that the learner already holds. Each must be registered; `uses: none` only if it relies on nothing.
 - The CLI scans the body for symbols and code names and refuses any that are neither registered nor in `terms:`.
 - `--node <id>` for setups, explanations and repairs. An explanation of a node that has no prediction yet is a **setup** (pass `--setup` for a later prediction on the same node): its prose is capped (`max_setup_chars` in the vault's tutor config, 900 by default), and it does not satisfy the check gate. Explanations and repairs (after a prediction) have no cap and satisfy the gate. Without `--node`, it is an aside (a clarification), allowed while a question is open.
 - It is placed in the note right after whatever came before the command (prose, grades), at the latest when you ask the next question. Prose in the chat or in your thinking does not count for the check gate.
-- In the teach phase, write no chat prose between their answer and your next question beyond a one-line pointer: everything they should read in order goes through the CLI.
+- After the command, write the same text as your chat message (reply line, new terms, body), before `tutor quiz`/`tutor recall` and never next to the dialog: the learner may be reading only the terminal or a phone. The note doesn't get a second copy. Other chat prose between their answer and your next question stays minimal: everything they should read in order goes through the CLI and its chat copy.
 
 A check is refused when no `tutor explain` block for its node exists since the last answer, except for a follow-up right after a passed check on the same node.
 
