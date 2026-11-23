@@ -573,9 +573,27 @@ def _min_chars(vault: Path) -> int:
     return int(load_config(vault).get("min_explanation_chars", 400))
 
 
+def _require_chat_copy(s: "Session") -> None:
+    """Once per explanation: the question waits until the explanation is also in
+    the chat. Checked here, not at the dialog: a refused dialog is still shown to
+    the learner, so they would see the question twice."""
+    ex = s.rec.get("explain_echo")
+    if not ex or ex.get("refused") or not (s.sid and mirror.transcript_path(s.vault, s.sid)):
+        return
+    ex["refused"] = True  # once: never trap the session in a loop
+    save_record(s.vault, s.rec)
+    raise TutorError(
+        "Your last `tutor explain` block is in the note but not in the chat. The learner may be reading the terminal "
+        "or a phone, where the note is not visible. Write the same text as a chat message first (the reply line, the "
+        "new terms, then the body), then run this command again. If you already wrote it in the same message as this "
+        "command, do not write it again: just run the command again."
+    )
+
+
 def cmd_quiz(args):
     spec = read_spec(args)
     with Session() as s:
+        _require_chat_copy(s)
         q, payload = questions.commit_quiz(s.rec, spec, _min_chars(s.vault), all_records(s.vault))
         _refresh_plan(s.vault, s.rec)
     print(f"Committed {q['qid']}. The answer key is stored and the options are shuffled.\n"

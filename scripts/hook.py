@@ -121,15 +121,6 @@ def stop_reason(rec: dict, payload: dict) -> str | None:
             "to wait for the learner to say ready. If the learner asked to pause, run `tutor.py session end` instead.")
 
 
-EXPLAIN_NOT_IN_CHAT = (
-    "[tutor] Your last `tutor explain` block is in the note but not in the chat. The learner may be reading the "
-    "terminal or a phone, where the note is not visible. Write the same text as a chat message first (the reply "
-    "line, the new terms, then the body), then call AskUserQuestion again with the same input. If you already wrote "
-    "it in the same message as this AskUserQuestion call, do not write it again: just call AskUserQuestion again. "
-    "Next time, write the copy before `tutor quiz`, not next to the dialog."
-)
-
-
 def explain_copy_reason(rec: dict, payload: dict) -> str | None:
     """At the end of a turn: the explanation must also be in the chat. Checked
     only when Claude Code passes the last message (the transcript can lag)."""
@@ -236,14 +227,6 @@ def handle(payload: dict):
 
         if event == "PreToolUse" and payload.get("tool_name") == mirror.ASK_TOOL:
             mirror.flush(vault, rec, sid)
-            ex = rec.get("explain_echo")
-            if ex and not ex.get("refused"):
-                ex["refused"] = True  # once: never trap the session in a loop
-                save_record(vault, rec)
-                print(json.dumps({"hookSpecificOutput": {
-                    "hookEventName": "PreToolUse", "permissionDecision": "deny",
-                    "permissionDecisionReason": EXPLAIN_NOT_IN_CHAT}}))
-                return
             block = mirror.log_ask_question(rec, payload.get("tool_use_id", ""), payload.get("tool_input") or {})
             if block:
                 append_note(note, block)

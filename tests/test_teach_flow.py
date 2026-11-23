@@ -378,9 +378,9 @@ class ChatCopyTests(unittest.TestCase):
 
     def test_question_refused_once_while_the_copy_is_missing(self):
         self.say("The note has the LoRA section.")
-        self.v.cli("quiz", stdin=self.check)
-        self.assertIn('"deny"', self.pre_ask())
-        self.assertNotIn('"deny"', self.pre_ask())  # once only: never a loop
+        self.assertIn("not in the chat", self.v.cli("quiz", stdin=self.check, ok=False).stderr)
+        self.v.cli("quiz", stdin=self.check)  # once only: never a loop
+        self.assertNotIn('"deny"', self.pre_ask())  # the dialog itself is never refused (it would show twice)
 
     def test_next_message_reminds_when_the_copy_was_never_written(self):
         out = self.v.hook({"hook_event_name": "UserPromptSubmit", "prompt": "where is the explanation?"})

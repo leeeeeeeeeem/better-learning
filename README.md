@@ -135,7 +135,7 @@ The original port was taken from LearnHarness 0.3.8. These later upstream change
 
 - The question dialog doesn't render LaTeX, so quiz questions and options are converted to Unicode there (`√dₖ`, `αᵢⱼ`, `ℝⁿ`). The note keeps the LaTeX.
 - Open questions and practice problems are also sent as chat messages, so they are visible without the note. The note doesn't get a second copy.
-- Explanations and setups are written into the note and then repeated as a chat message, so the session can be followed from the terminal or the phone without telling the tutor where you are. The mirror recognises the copy and keeps it out of the note; a question dialog is refused once while the copy is missing.
+- Explanations and setups are written into the note and then repeated as a chat message, so the session can be followed from the terminal or the phone without telling the tutor where you are. The mirror recognises the copy and keeps it out of the note; the next `tutor quiz` is refused once while the copy is missing (the dialog itself never is, so a question is never shown twice).
 - Closing a question dialog without answering (easy on a phone) leaves the question open; it is asked again, not recorded as cancelled.
 
 ## Files
@@ -143,7 +143,7 @@ The original port was taken from LearnHarness 0.3.8. These later upstream change
 - `scripts/tutor.py`: the CLI; `scripts/hook.py`: hook entry point (mirror, recall candidates, Stop check, write guard); `scripts/tutorlib/`: vault/state, mirror, questions, terms (registry and define-before-use checks), review (review scheduling), plan, graph; `scripts/run_demo.py`: headless demo tester.
 - `tests/test_teach_flow.py`: end-to-end tests of the teach loop, the term checks, setups, review questions and resume, recall asides, chat copies, note ordering and the write guard. Run `python3 -m unittest discover -s tests` from the plugin root.
 - State lives in the vault's `.tutor/` (Obsidian ignores dot-folders): `state.json` (which conversation is bound to which session), `sessions/*.json` (questions with answer keys and candidate answers, plan, probe, term registry, explanations, problems), `graph.json`.
-- Set `TUTOR_DEBUG=1` to log raw hook payloads to `.tutor/hook-debug.jsonl`. Hook failures go to `.tutor/hook-errors.log` and never interrupt the session. The hooks block on purpose only in these cases: a turn that ends after an explanation with no question (Stop), a question dialog while the last explanation is missing from the chat (once), and a direct write to the note or `.tutor/` (PreToolUse).
+- Set `TUTOR_DEBUG=1` to log raw hook payloads to `.tutor/hook-debug.jsonl`. Hook failures go to `.tutor/hook-errors.log` and never interrupt the session. The hooks block on purpose only in these cases: a turn that ends after an explanation with no question (Stop), and a direct write to the note or `.tutor/` (PreToolUse).
 - Sessions started before 0.3.0 have an empty term registry. On resume, the tutor registers what the note shows was probed or taught (`tutor.py terms add`) before it asks anything.
 
 ## Credits
