@@ -38,6 +38,23 @@ def queue_block(rec: dict, block: str, echo: str | None = None) -> str:
     return token
 
 
+_WORD_RE = re.compile(r"[a-z0-9_]{3,}")
+
+
+def _words(text: str) -> set[str]:
+    return set(_WORD_RE.findall((text or "").lower()))
+
+
+def is_explain_copy(prose: str, explain_text: str) -> bool:
+    """The chat copy of a `tutor explain` block, possibly reworded a little:
+    nearly all of its words come from the block, and it covers most of it."""
+    pw, ew = _words(prose), _words(explain_text)
+    if len(pw) < 5 or not ew:
+        return False
+    common = len(pw & ew)
+    return common / len(pw) >= 0.75 and common / len(ew) >= 0.5
+
+
 def _remember_anchor_block(rec: dict, key: str, block: str) -> None:
     """Blocks that prose written in the same step can only reach the note after:
     an AskUserQuestion (logged by PreToolUse before the step is in the
@@ -166,6 +183,15 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
     pending_text: list[str] = []
     seen_msg_text: set = set()
 
+    def is_copy(prose: str) -> bool:
+        """Prose that repeats the latest explanation in the chat (so it is visible
+        in the terminal and on a phone). The note already has the block."""
+        ex = rec.get("explain_echo")
+        if ex and is_explain_copy(prose, ex.get("text", "")):
+            rec["explain_echo"] = None
+            return True
+        return False
+
     def emit_text(before: str | None = None):
         """`before`: a block already written that this prose was meant to precede."""
         if pending_text:
@@ -178,12 +204,14 @@ def flush(vault: Path, rec: dict, sid: str, include_user: bool = False, from_sta
                 intro, _, rest = text.partition(echo.strip())
                 rec["echo"] = None
                 intro, rest = intro.strip(), rest.strip()
+                if intro and is_copy(intro):
+                    intro = ""
                 if intro:
                     insert_before(note, (rec.get("anchor_blocks") or {}).get("echo"),
                                   blocks.assistant_block(intro, _next_anchor(rec)), out)
                     rec["prose_since_answer"] = rec.get("prose_since_answer", 0) + len(intro)
                 text = rest
-            if not text:
+            if not text or is_copy(text):
                 return
             block = blocks.assistant_block(text, _next_anchor(rec))
             if before:

@@ -335,6 +335,73 @@ class MirrorTests(unittest.TestCase):
         self.assertEqual(note.count(question), 1)  # the chat copy is not repeated in the note
 
 
+class ChatCopyTests(unittest.TestCase):
+    """The learner may read only the chat (terminal, or a phone over remote
+    control): explanations go to the note AND the chat, without duplicates."""
+
+    def setUp(self):
+        self.v = Vault()
+        self.v.to_teach_phase()
+        transcript = self.v.dir / "transcript.jsonl"
+        transcript.write_text("")
+        self.v.hook({"hook_event_name": "Stop", "transcript_path": str(transcript)})
+        self.transcript = transcript
+        self.v.cli("quiz", stdin=PREDICT)
+        self.v.answer_quiz("The pretrained function")
+        out = self.v.cli("explain", "--node", "lora", stdin="reply: Correct.\n" + EXPLAIN_LORA).stdout
+        marker = out[out.index("\u27e6"):out.index("\u27e7") + 1]
+        with open(transcript, "a") as fh:  # Claude Code writes the tool result, with its marker
+            fh.write(json.dumps({"type": "user", "message": {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "e1", "content": f"(note markers, ignore: {marker})"}]}}) + "\n")
+        self.v.cli("flush")
+        self.check = {"type": "check", "nodeId": "lora", "uses": ["LoRA"], "question": "How many parameters does LoRA add?",
+                      "options": ["$2dr$", "$d^2$"], "correct": "$2dr$", "explanation": "x"}
+
+    def say(self, text):
+        with open(self.transcript, "a") as fh:
+            fh.write(json.dumps({"type": "assistant", "message": {"id": f"m{text[:8]}", "role": "assistant",
+                                                                  "content": [{"type": "text", "text": text}]}}) + "\n")
+
+    def pre_ask(self):
+        q = questions.open_question(self.v.record())
+        return self.v.hook({"hook_event_name": "PreToolUse", "tool_name": "AskUserQuestion", "tool_use_id": "ask1",
+                            "tool_input": questions.ask_payload(q)})
+
+    def test_chat_copy_is_kept_out_of_the_note(self):
+        self.say("Correct.\n\nNew terms: LoRA: low-rank adaptation, a trainable update $BA$ added to a frozen matrix $W$. "
+                 "$W_{up}$: the up-projection of the update, a $768 \\times 8$ matrix.\n\n## LoRA\n\n**LoRA** adds $BA$ "
+                 "to the frozen $W$. Here $W_{up}$ starts at zero, so the layer starts as the pretrained one.")
+        self.v.cli("quiz", stdin=self.check)
+        self.assertNotIn('"deny"', self.pre_ask())
+        note = self.v.note()
+        self.assertEqual(note.count("so the layer starts as the pretrained one"), 1)
+
+    def test_question_refused_once_while_the_copy_is_missing(self):
+        self.say("The note has the LoRA section.")
+        self.v.cli("quiz", stdin=self.check)
+        self.assertIn('"deny"', self.pre_ask())
+        self.assertNotIn('"deny"', self.pre_ask())  # once only: never a loop
+
+    def test_next_message_reminds_when_the_copy_was_never_written(self):
+        out = self.v.hook({"hook_event_name": "UserPromptSubmit", "prompt": "where is the explanation?"})
+        self.assertIn("never appeared in the chat", out)
+
+    def test_declined_dialog_leaves_the_question_open(self):
+        self.say("Correct. New terms: LoRA: low-rank adaptation, a trainable update BA added to a frozen matrix W. "
+                 "W_up: the up-projection. LoRA adds BA to the frozen W. Here W_up starts at zero, so the layer "
+                 "starts as the pretrained one.")
+        self.v.cli("quiz", stdin=self.check)
+        q = questions.open_question(self.v.record())
+        payload = questions.ask_payload(q)
+        self.v.hook({"hook_event_name": "PreToolUse", "tool_name": "AskUserQuestion", "tool_use_id": "d1",
+                     "tool_input": payload})
+        out = self.v.hook({"hook_event_name": "PostToolUse", "tool_name": "AskUserQuestion", "tool_use_id": "d1",
+                           "tool_input": payload, "tool_response": "The user doesn't want to proceed with this tool use."})
+        self.assertIn("still open", out)
+        self.assertEqual(questions.open_question(self.v.record())["qid"], q["qid"])
+        self.assertIn("Correct ✓", self.v.answer_quiz("$2dr$") and self.v.note())  # the re-asked dialog grades
+
+
 class GuardTests(unittest.TestCase):
     def setUp(self):
         self.v = Vault()

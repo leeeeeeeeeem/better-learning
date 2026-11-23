@@ -617,6 +617,11 @@ def cmd_explain(args):
         s.append(blocks.explain_block(body, terms, mirror._next_anchor(rec), reply))
         if reply:
             rec["reply_due"] = None
+        # The learner reads the terminal or a phone as much as the note: the same
+        # text goes in the chat. The mirror recognises the copy and keeps it out
+        # of the note; a question is refused once while the copy is missing.
+        rec["explain_echo"] = {"text": "\n".join([reply or ""] + [f"{t['term']}: {t['definition']}" for t in terms]
+                                                 + [body]), "node": node, "at": now_iso()}
         rec.setdefault("explanations", []).append(
             {"node": node, "at": now_iso(), "chars": len(body), "terms": [t["term"] for t in terms], "uses": uses or [],
              "setup": is_setup})
@@ -628,21 +633,22 @@ def cmd_explain(args):
                 ex.append(node)
         open_q = questions.open_question(rec)
     print(f"Explanation queued for the note ({len(body)} characters, {len(terms)} new terms). It appears right "
-          "after what came before it, at the latest when you ask the next question.")
+          "after what came before it, at the latest when you ask the next question.\n"
+          "Now write the same text as your chat message: the reply line, the new terms, then the body (markdown and "
+          "LaTeX as in the note). The learner may be reading the terminal or a phone, where the note is not visible. "
+          "The note does not get a second copy. A question is refused while this copy is missing.")
     if open_q is not None:
         print(f"Question {open_q['qid']} is still open. End your turn by repeating it (copied exactly) so the learner can "
               "answer it now.")
     elif is_setup:
         print(f"This was a setup. Next: in this same turn, ask the prediction on `{node}`. Do not end the turn first, "
               "and never ask the learner to say ready. After their answer, the explanation follows, sized by their "
-              "prediction (`tutor explain` with a `reply:` line), then the check.\n"
-              "In the chat, write at most one line pointing to the new section.")
+              "prediction (`tutor explain` with a `reply:` line), then the check.")
     elif node:
         print(f"Next: in this same turn, ask the check on `{node}`. Do not end the turn first, and never ask the "
-              "learner to say ready: the note already shows the explanation, and the question waits while they read.\n"
-              "In the chat, write at most one line pointing to the new section; do not repeat the explanation.")
+              "learner to say ready: the question waits while they read.")
     else:
-        print("Next: answer the learner in one line in the chat, then continue where the session was.")
+        print("Next: after the chat copy, continue where the session was.")
 
 
 # ─── practice ────────────────────────────────────────────────────────────────

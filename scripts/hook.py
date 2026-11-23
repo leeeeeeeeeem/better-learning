@@ -121,6 +121,30 @@ def stop_reason(rec: dict, payload: dict) -> str | None:
             "to wait for the learner to say ready. If the learner asked to pause, run `tutor.py session end` instead.")
 
 
+EXPLAIN_NOT_IN_CHAT = (
+    "[tutor] Your last `tutor explain` block is in the note but not in the chat. The learner may be reading the "
+    "terminal or a phone, where the note is not visible. Write the same text as a chat message first (the reply "
+    "line, the new terms, then the body), then call AskUserQuestion again with the same input. If you already wrote "
+    "it in the same message as this AskUserQuestion call, do not write it again: just call AskUserQuestion again. "
+    "Next time, write the copy before `tutor quiz`, not next to the dialog."
+)
+
+
+def explain_copy_reason(rec: dict, payload: dict) -> str | None:
+    """At the end of a turn: the explanation must also be in the chat. Checked
+    only when Claude Code passes the last message (the transcript can lag)."""
+    ex = rec.get("explain_echo")
+    last = payload.get("last_assistant_message")
+    if payload.get("stop_hook_active") or not ex or not isinstance(last, str):
+        return None
+    if mirror.is_explain_copy(last, ex.get("text", "")):
+        rec["explain_echo"] = None
+        return None
+    return ("[tutor] Your last `tutor explain` block is not in the chat, so a learner reading the terminal or a phone "
+            "has not seen it. Write it now as a chat message (the reply line, the new terms, then the body), then end "
+            "the turn as you meant to.")
+
+
 def spawn_delayed_flush(vault: Path, sid: str) -> None:
     try:
         subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--delayed-flush", str(vault), sid],
@@ -184,12 +208,17 @@ def handle(payload: dict):
             prompt = payload.get("prompt") or ""
             cleaned = blocks.clean_user_text(prompt)
             ctx = None
+            missed = rec.pop("explain_echo", None)
+            if missed:
+                ctx = ("[tutor] Your last `tutor explain` block never appeared in the chat, so the learner may not have "
+                       "seen it (they may be reading the terminal or a phone). Before anything else, write it in the "
+                       "chat: the reply line, the new terms, then the body.")
             recall = questions.recall_awaiting_answer(rec)
             problem = next((p for p in rec.get("problems", []) if p["status"] == "active"), None)
             if cleaned and recall and not cleaned.startswith("> [!note]"):
                 # Only a candidate: it may be an aside. The grade marks what was graded.
                 append_note(note, blocks.user_block(cleaned))
-                ctx = questions.record_recall_candidate(recall, cleaned)
+                ctx = "\n".join(x for x in (ctx, questions.record_recall_candidate(recall, cleaned)) if x)
             elif cleaned and problem and not cleaned.startswith("> [!note]"):
                 append_note(note, blocks.thinking_block(cleaned))
                 problem["submissions"].append({"at": payload.get("timestamp"), "text": cleaned})
@@ -207,6 +236,14 @@ def handle(payload: dict):
 
         if event == "PreToolUse" and payload.get("tool_name") == mirror.ASK_TOOL:
             mirror.flush(vault, rec, sid)
+            ex = rec.get("explain_echo")
+            if ex and not ex.get("refused"):
+                ex["refused"] = True  # once: never trap the session in a loop
+                save_record(vault, rec)
+                print(json.dumps({"hookSpecificOutput": {
+                    "hookEventName": "PreToolUse", "permissionDecision": "deny",
+                    "permissionDecisionReason": EXPLAIN_NOT_IN_CHAT}}))
+                return
             block = mirror.log_ask_question(rec, payload.get("tool_use_id", ""), payload.get("tool_input") or {})
             if block:
                 append_note(note, block)
@@ -247,7 +284,7 @@ def handle(payload: dict):
             # without a second flush it shows up in the note only once the learner
             # types something. Flush again shortly, in the background.
             spawn_delayed_flush(vault, sid)
-            reason = stop_reason(rec, payload)
+            reason = stop_reason(rec, payload) or explain_copy_reason(rec, payload)
             if reason:
                 print(json.dumps({"decision": "block", "reason": reason}))
 
